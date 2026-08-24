@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setAccessToken(result.data.accessToken);
+      setUser(result.data.user);
 
       return result.data.accessToken;
     } catch {
