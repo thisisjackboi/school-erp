@@ -4,12 +4,14 @@ import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { RoleProvider } from "@/lib/permissions";
 import { ToastProvider } from "@/components/ui/toast";
+import { AuthProvider } from "@/lib/auth/auth-context";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Apex School ERP - Enterprise Frontend",
-  description: "Next-generation enterprise frontend school management system for K-12 institutions.",
+  description:
+    "Next-generation enterprise frontend school management system for K-12 institutions.",
 };
 
 export default function RootLayout({
@@ -20,12 +22,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <RoleProvider>
-            <ToastProvider>
-              {children}
-            </ToastProvider>
-          </RoleProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+        >
+          <AuthProvider>
+            <RoleProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </RoleProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
