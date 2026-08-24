@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
   type ReactNode,
 } from "react";
@@ -28,7 +29,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const login = useCallback(async (credentials: LoginRequest) => {
     setIsLoading(true);
@@ -79,6 +80,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
     }
   }, []);
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        await refreshAccessToken();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void initializeAuth();
+  }, [refreshAccessToken]);
 
   return (
     <AuthContext.Provider
