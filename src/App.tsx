@@ -1,6 +1,7 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ProtectedRoute } from "@/components/auth/protected-route";
 
 // Import all pages
 import LoginPage from "@/pages/login";
@@ -32,6 +33,7 @@ import CertificatesPage from "@/pages/certificates";
 import ReportsPage from "@/pages/reports";
 import SettingsPage from "@/pages/settings";
 import ProfilePage from "@/pages/profile";
+import AccessManagementPage from "@/pages/access-management";
 
 export function App() {
   return (
@@ -40,35 +42,41 @@ export function App() {
       <Route path="/" element={<LoginPage />} />
 
       {/* Authenticated Dashboard App Layout & Module Routes */}
-      <Route element={<AppLayout />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/students" element={<StudentsPage />} />
-        <Route path="/admissions" element={<AdmissionsPage />} />
-        <Route path="/classes" element={<ClassesPage />} />
-        <Route path="/subjects" element={<SubjectsPage />} />
-        <Route path="/sessions" element={<SessionsPage />} />
-        <Route path="/attendance" element={<AttendancePage />} />
-        <Route path="/homework" element={<HomeworkPage />} />
-        <Route path="/timetable" element={<TimetablePage />} />
-        <Route path="/exams" element={<ExamsPage />} />
-        <Route path="/report-cards" element={<ReportCardsPage />} />
-        <Route path="/fees" element={<FeesPage />} />
-        <Route path="/finance" element={<FinancePage />} />
-        <Route path="/payroll" element={<PayrollPage />} />
-        <Route path="/teachers" element={<TeachersPage />} />
-        <Route path="/employees" element={<EmployeesPage />} />
-        <Route path="/leave" element={<LeavePage />} />
-        <Route path="/library" element={<LibraryPage />} />
-        <Route path="/inventory" element={<InventoryPage />} />
-        <Route path="/transport" element={<TransportPage />} />
-        <Route path="/hostel" element={<HostelPage />} />
-        <Route path="/visitors" element={<VisitorsPage />} />
-        <Route path="/announcements" element={<AnnouncementsPage />} />
-        <Route path="/events" element={<EventsPage />} />
-        <Route path="/certificates" element={<CertificatesPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppLayout />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route
+            path="/access-management"
+            element={<AccessManagementPage />}
+          />
+          <Route path="/students" element={<StudentsPage />} />
+          <Route path="/admissions" element={<AdmissionsPage />} />
+          <Route path="/classes" element={<ClassesPage />} />
+          <Route path="/subjects" element={<SubjectsPage />} />
+          <Route path="/sessions" element={<SessionsPage />} />
+          <Route path="/attendance" element={<AttendancePage />} />
+          <Route path="/homework" element={<HomeworkPage />} />
+          <Route path="/timetable" element={<TimetablePage />} />
+          <Route path="/exams" element={<ExamsPage />} />
+          <Route path="/report-cards" element={<ReportCardsPage />} />
+          <Route path="/fees" element={<FeesPage />} />
+          <Route path="/finance" element={<FinancePage />} />
+          <Route path="/payroll" element={<PayrollPage />} />
+          <Route path="/teachers" element={<TeachersPage />} />
+          <Route path="/employees" element={<EmployeesPage />} />
+          <Route path="/leave" element={<LeavePage />} />
+          <Route path="/library" element={<LibraryPage />} />
+          <Route path="/inventory" element={<InventoryPage />} />
+          <Route path="/transport" element={<TransportPage />} />
+          <Route path="/hostel" element={<HostelPage />} />
+          <Route path="/visitors" element={<VisitorsPage />} />
+          <Route path="/announcements" element={<AnnouncementsPage />} />
+          <Route path="/events" element={<EventsPage />} />
+          <Route path="/certificates" element={<CertificatesPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+        </Route>
       </Route>
 
       {/* Fallback Route */}
