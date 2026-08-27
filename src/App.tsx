@@ -10,7 +10,7 @@ import StudentsPage from "@/pages/students";
 import AdmissionsPage from "@/pages/admissions";
 import ClassesPage from "@/pages/classes";
 import SubjectsPage from "@/pages/subjects";
-import SessionsPage from "@/pages/sessions";
+import SessionsPage from "@/pages/sessions/index";
 import AttendancePage from "@/pages/attendance";
 import HomeworkPage from "@/pages/homework";
 import TimetablePage from "@/pages/timetable";
@@ -49,11 +49,12 @@ export function App() {
             path="/access-management"
             element={<AccessManagementPage />}
           />
+           <Route path="/sessions" element={<SessionsPage />} />
           <Route path="/students" element={<StudentsPage />} />
           <Route path="/admissions" element={<AdmissionsPage />} />
           <Route path="/classes" element={<ClassesPage />} />
           <Route path="/subjects" element={<SubjectsPage />} />
-          <Route path="/sessions" element={<SessionsPage />} />
+         
           <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/homework" element={<HomeworkPage />} />
           <Route path="/timetable" element={<TimetablePage />} />
