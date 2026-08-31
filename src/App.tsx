@@ -9,7 +9,7 @@ import DashboardPage from "@/pages/dashboard";
 import StudentsPage from "@/pages/students";
 import AdmissionsPage from "@/pages/admissions";
 import ClassesPage from "@/pages/classes/index";
-import SubjectsPage from "@/pages/subjects";
+import SubjectsPage from "@/pages/subjects/index";
 import SessionsPage from "@/pages/sessions/index";
 import SectionPage from "@/pages/sections/index";
 import AttendancePage from "@/pages/attendance";
