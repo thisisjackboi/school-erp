@@ -106,11 +106,19 @@ export const MODULE_ROUTES: NavItem[] = [
   },
   { title: "Access Management", href: "/access-management", iconName: "CalendarDays" },
   { title: "Academic Session", href: "/sessions", iconName: "CalendarDays" },
+  { title: "Classes & Sections", href: "/classes", iconName: "School" },
+  {
+    title: "Class–Subject Mapping",
+    href: "/class-subjects",
+    iconName: "BookOpenCheck",
+  },
   { title: "Section Management", href: "/sections", iconName: "layers" },
+ 
+ 
  
   { title: "Students", href: "/students", iconName: "Users" },
   { title: "Admissions", href: "/admissions", iconName: "UserPlus" },
-  { title: "Classes & Sections", href: "/classes", iconName: "School" },
+ 
   { title: "Subjects", href: "/subjects", iconName: "BookOpen" },
 
   { title: "Attendance", href: "/attendance", iconName: "UserCheck" },

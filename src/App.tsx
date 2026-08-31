@@ -6,10 +6,11 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 // Import all pages
 import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
-import PermissionsPage  from "@/pages/permissions/index";
+import PermissionsPage from "@/pages/permissions/index";
 import StudentsPage from "@/pages/students";
 import AdmissionsPage from "@/pages/admissions";
 import ClassesPage from "@/pages/classes/index";
+import ClassSubjectsPage from "@/pages/class-subjects/index";
 import SubjectsPage from "@/pages/subjects/index";
 import SessionsPage from "@/pages/sessions/index";
 import SectionPage from "@/pages/sections/index";
@@ -52,7 +53,7 @@ export function App() {
             element={<AccessManagementPage />}
           />
 
-<Route
+          <Route
             path="/permissions"
             element={<PermissionsPage />}
           />
@@ -60,9 +61,13 @@ export function App() {
           <Route path="/students" element={<StudentsPage />} />
           <Route path="/admissions" element={<AdmissionsPage />} />
           <Route path="/classes" element={<ClassesPage />} />
+          <Route
+            path="/class-subjects"
+            element={<ClassSubjectsPage />}
+          />
           <Route path="/subjects" element={<SubjectsPage />} />
           <Route path="/sections" element={<SectionPage />} />
-         
+
           <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/homework" element={<HomeworkPage />} />
           <Route path="/timetable" element={<TimetablePage />} />
