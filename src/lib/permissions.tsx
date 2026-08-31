@@ -99,8 +99,10 @@ export interface NavItem {
 
 export const MODULE_ROUTES: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", iconName: "LayoutDashboard" },
-  { title: "Academic Session", href: "/sessions", iconName: "CalendarDays" },
   { title: "Access Management", href: "/access-management", iconName: "CalendarDays" },
+  { title: "Academic Session", href: "/sessions", iconName: "CalendarDays" },
+  { title: "Section Management", href: "/sections", iconName: "layers" },
+ 
   { title: "Students", href: "/students", iconName: "Users" },
   { title: "Admissions", href: "/admissions", iconName: "UserPlus" },
   { title: "Classes & Sections", href: "/classes", iconName: "School" },

@@ -11,6 +11,7 @@ import AdmissionsPage from "@/pages/admissions";
 import ClassesPage from "@/pages/classes/index";
 import SubjectsPage from "@/pages/subjects";
 import SessionsPage from "@/pages/sessions/index";
+import SectionPage from "@/pages/sections/index";
 import AttendancePage from "@/pages/attendance";
 import HomeworkPage from "@/pages/homework";
 import TimetablePage from "@/pages/timetable";
@@ -54,6 +55,7 @@ export function App() {
           <Route path="/admissions" element={<AdmissionsPage />} />
           <Route path="/classes" element={<ClassesPage />} />
           <Route path="/subjects" element={<SubjectsPage />} />
+          <Route path="/sections" element={<SectionPage />} />
          
           <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/homework" element={<HomeworkPage />} />
