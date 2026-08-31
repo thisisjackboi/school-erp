@@ -11,7 +11,7 @@ import { Settings, Save, ShieldCheck, School } from "lucide-react";
 export default function SettingsPage() {
   const { toast } = useToast();
   const [schoolName, setSchoolName] = useState("Apex International Senior Secondary School");
-  const [schoolCode, setSchoolCode] = uāseState("CBSE-54109");
+  const [schoolCode, setSchoolCode] = useState("CBSE-54109");
   const [phone, setPhone] = useState("+91 11 2612 3456");
   const [address, setAddress] = useState("Sector 4, Vasant Vihar, New Delhi - 110057");
 
