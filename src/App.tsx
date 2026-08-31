@@ -6,6 +6,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 // Import all pages
 import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
+import PermissionsPage  from "@/pages/permissions/index";
 import StudentsPage from "@/pages/students";
 import AdmissionsPage from "@/pages/admissions";
 import ClassesPage from "@/pages/classes/index";
@@ -50,7 +51,12 @@ export function App() {
             path="/access-management"
             element={<AccessManagementPage />}
           />
-           <Route path="/sessions" element={<SessionsPage />} />
+
+<Route
+            path="/permissions"
+            element={<PermissionsPage />}
+          />
+          <Route path="/sessions" element={<SessionsPage />} />
           <Route path="/students" element={<StudentsPage />} />
           <Route path="/admissions" element={<AdmissionsPage />} />
           <Route path="/classes" element={<ClassesPage />} />
