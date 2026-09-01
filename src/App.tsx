@@ -38,6 +38,7 @@ import SettingsPage from "@/pages/settings";
 import ProfilePage from "@/pages/profile";
 import AccessManagementPage from "@/pages/access-management";
 import DesignationsPage from "@/pages/designations/index";
+import RolesPage from "./pages/roles/index";
 
 export function App() {
   return (
@@ -54,6 +55,7 @@ export function App() {
           <Route path="/permissions" element={<PermissionsPage />} />
           <Route path="/sessions" element={<SessionsPage />} />
           <Route path="/designations" element={<DesignationsPage />} />
+          <Route path="/roles" element={<RolesPage />} />
           <Route path="/students" element={<StudentsPage />} />
           <Route path="/admissions" element={<AdmissionsPage />} />
           <Route path="/classes" element={<ClassesPage />} />

@@ -123,6 +123,16 @@ export const MODULE_ROUTES: NavItem[] = [
     href: "/access-management",
     iconName: "CalendarDays",
   },
+  {
+    title: "Designations",
+    href: "/designations",
+    iconName: "BriefcaseBusiness",
+  },
+  {
+    title: "Roles",
+    href: "/roles",
+    iconName: "ShieldCheck",
+  },
   { title: "Academic Session", href: "/sessions", iconName: "CalendarDays" },
   { title: "Classes & Sections", href: "/classes", iconName: "School" },
   {
@@ -131,11 +141,6 @@ export const MODULE_ROUTES: NavItem[] = [
     iconName: "BookOpenCheck",
   },
   { title: "Section Management", href: "/sections", iconName: "layers" },
-  {
-    title: "Designations",
-    href: "/designations",
-    iconName: "BriefcaseBusiness",
-  },
 
   { title: "Students", href: "/students", iconName: "Users" },
   { title: "Admissions", href: "/admissions", iconName: "UserPlus" },
