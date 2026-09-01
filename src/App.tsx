@@ -37,6 +37,7 @@ import ReportsPage from "@/pages/reports";
 import SettingsPage from "@/pages/settings";
 import ProfilePage from "@/pages/profile";
 import AccessManagementPage from "@/pages/access-management";
+import DesignationsPage from "@/pages/designations/index";
 
 export function App() {
   return (
@@ -48,23 +49,15 @@ export function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route
-            path="/access-management"
-            element={<AccessManagementPage />}
-          />
+          <Route path="/access-management" element={<AccessManagementPage />} />
 
-          <Route
-            path="/permissions"
-            element={<PermissionsPage />}
-          />
+          <Route path="/permissions" element={<PermissionsPage />} />
           <Route path="/sessions" element={<SessionsPage />} />
+          <Route path="/designations" element={<DesignationsPage />} />
           <Route path="/students" element={<StudentsPage />} />
           <Route path="/admissions" element={<AdmissionsPage />} />
           <Route path="/classes" element={<ClassesPage />} />
-          <Route
-            path="/class-subjects"
-            element={<ClassSubjectsPage />}
-          />
+          <Route path="/class-subjects" element={<ClassSubjectsPage />} />
           <Route path="/subjects" element={<SubjectsPage />} />
           <Route path="/sections" element={<SectionPage />} />
 
