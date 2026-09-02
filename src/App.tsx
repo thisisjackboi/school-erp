@@ -23,7 +23,6 @@ import FeesPage from "@/pages/fees";
 import FinancePage from "@/pages/finance";
 import PayrollPage from "@/pages/payroll";
 import TeachersPage from "@/pages/teachers";
-import EmployeesPage from "@/pages/employees";
 import LeavePage from "@/pages/leave";
 import LibraryPage from "@/pages/library";
 import InventoryPage from "@/pages/inventory";
@@ -39,6 +38,7 @@ import ProfilePage from "@/pages/profile";
 import AccessManagementPage from "@/pages/access-management";
 import DesignationsPage from "@/pages/designations/index";
 import RolesPage from "./pages/roles/index";
+import EmployeesPage from "@/pages/employees/index";
 
 export function App() {
   return (
@@ -56,6 +56,7 @@ export function App() {
           <Route path="/sessions" element={<SessionsPage />} />
           <Route path="/designations" element={<DesignationsPage />} />
           <Route path="/roles" element={<RolesPage />} />
+          <Route path="/employees" element={<EmployeesPage />} />
           <Route path="/students" element={<StudentsPage />} />
           <Route path="/admissions" element={<AdmissionsPage />} />
           <Route path="/classes" element={<ClassesPage />} />

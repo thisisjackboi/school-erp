@@ -133,6 +133,11 @@ export const MODULE_ROUTES: NavItem[] = [
     href: "/roles",
     iconName: "ShieldCheck",
   },
+  {
+    title: "Employees",
+    href: "/employees",
+    iconName: "UserRound",
+  },
   { title: "Academic Session", href: "/sessions", iconName: "CalendarDays" },
   { title: "Classes & Sections", href: "/classes", iconName: "School" },
   {
@@ -156,7 +161,7 @@ export const MODULE_ROUTES: NavItem[] = [
   { title: "Finance & Accounts", href: "/finance", iconName: "DollarSign" },
   { title: "Payroll", href: "/payroll", iconName: "Receipt" },
   { title: "Teachers", href: "/teachers", iconName: "UserSquare2" },
-  { title: "Staff Directory", href: "/employees", iconName: "Briefcase" },
+
   { title: "Leave Management", href: "/leave", iconName: "CalendarCheck" },
   { title: "Library", href: "/library", iconName: "Library" },
   { title: "Inventory", href: "/inventory", iconName: "Boxes" },
