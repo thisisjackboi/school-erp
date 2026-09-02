@@ -61,7 +61,6 @@ const initialForm: EmployeeForm = {
 
 export default function EmployeesPage() {
   const { accessToken } = useAuth();
-
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [designations, setDesignations] = useState<Designation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,11 +72,9 @@ export default function EmployeesPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!accessToken) {
-      return;
+    if (accessToken) {
+      loadData();
     }
-
-    loadData();
   }, [accessToken]);
 
   async function loadData() {
@@ -115,7 +112,6 @@ export default function EmployeesPage() {
 
   function openEditModal(employee: Employee) {
     setEditingEmployee(employee);
-
     setForm({
       employeeCode: employee.employeeCode,
       firstName: employee.firstName,
@@ -138,7 +134,6 @@ export default function EmployeesPage() {
       userPhone: employee.user?.phone || "",
       password: "",
     });
-
     setError("");
     setShowModal(true);
   }
@@ -291,7 +286,7 @@ export default function EmployeesPage() {
             <tr>
               <th className="px-4 py-3 text-left">Employee Code</th>
               <th className="px-4 py-3 text-left">Name</th>
-              <th className="px-4 py-3 text-left">Username</th>
+              <th className="px-4 py-3 text-left">Login</th>
               <th className="px-4 py-3 text-left">Designation</th>
               <th className="px-4 py-3 text-left">Employment Type</th>
               <th className="px-4 py-3 text-left">Phone</th>
@@ -323,7 +318,15 @@ export default function EmployeesPage() {
                   </td>
 
                   <td className="px-4 py-3">
-                    {employee.user?.username || "-"}
+                    {employee.user ? (
+                      <span className="inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
+                        Login Enabled
+                      </span>
+                    ) : (
+                      <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+                        No Login
+                      </span>
+                    )}
                   </td>
 
                   <td className="px-4 py-3">
@@ -377,6 +380,7 @@ export default function EmployeesPage() {
                 <h2 className="text-xl font-semibold">
                   {editingEmployee ? "Edit Employee" : "Create Employee"}
                 </h2>
+
                 <p className="mt-1 text-sm text-gray-500">
                   {editingEmployee
                     ? "Update employee information."
@@ -467,7 +471,6 @@ export default function EmployeesPage() {
                     className="mt-1 w-full rounded-md border px-3 py-2"
                   >
                     <option value="">Select Designation</option>
-
                     {designations.map((designation) => (
                       <option key={designation.id} value={designation.id}>
                         {designation.title}
@@ -546,8 +549,9 @@ export default function EmployeesPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-lg font-medium">Login Credentials</h3>
+
                       <p className="mt-1 text-sm text-gray-500">
-                        Create a user account for this employee if required.
+                        Does this employee need a login account?
                       </p>
                     </div>
 
@@ -565,7 +569,7 @@ export default function EmployeesPage() {
                           : "border bg-white text-gray-700"
                       }`}
                     >
-                      {form.createUser ? "Login Required" : "No Login"}
+                      {form.createUser ? "Yes" : "No"}
                     </button>
                   </div>
 
@@ -574,6 +578,7 @@ export default function EmployeesPage() {
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <label className="block">
                           <span className="text-sm font-medium">Username</span>
+
                           <input
                             name="username"
                             value={form.username}
@@ -585,6 +590,7 @@ export default function EmployeesPage() {
 
                         <label className="block">
                           <span className="text-sm font-medium">Email</span>
+
                           <input
                             type="email"
                             name="email"
@@ -598,6 +604,7 @@ export default function EmployeesPage() {
                           <span className="text-sm font-medium">
                             Login Phone
                           </span>
+
                           <input
                             name="userPhone"
                             value={form.userPhone}
@@ -608,6 +615,7 @@ export default function EmployeesPage() {
 
                         <label className="block">
                           <span className="text-sm font-medium">Password</span>
+
                           <input
                             type="password"
                             name="password"
