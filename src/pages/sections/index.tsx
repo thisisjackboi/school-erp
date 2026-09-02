@@ -1,17 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  Plus,
-  School,
-  Pencil,
-  X,
-} from "lucide-react";
+import { Plus, School, Pencil, X } from "lucide-react";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -35,19 +25,18 @@ export default function SectionsPage() {
 
   const [sections, setSections] = useState<Section[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
-  const [academicSessions, setAcademicSessions] =
-    useState<AcademicSession[]>([]);
+  const [academicSessions, setAcademicSessions] = useState<AcademicSession[]>(
+    [],
+  );
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSection, setEditingSection] =
-    useState<Section | null>(null);
+  const [editingSection, setEditingSection] = useState<Section | null>(null);
 
   const [classId, setClassId] = useState("");
-  const [academicSessionId, setAcademicSessionId] =
-    useState("");
+  const [academicSessionId, setAcademicSessionId] = useState("");
   const [name, setName] = useState("");
   const [capacity, setCapacity] = useState("");
 
@@ -62,11 +51,7 @@ export default function SectionsPage() {
     setError(null);
 
     try {
-      const [
-        sectionsData,
-        classesData,
-        sessionsData,
-      ] = await Promise.all([
+      const [sectionsData, classesData, sessionsData] = await Promise.all([
         getSections(accessToken),
         getClasses(accessToken),
         getAcademicSessions(accessToken),
@@ -76,15 +61,10 @@ export default function SectionsPage() {
       setClasses(classesData);
       setAcademicSessions(sessionsData);
     } catch (error) {
-      console.error(
-        "Failed to load sections data",
-        error,
-      );
+      console.error("Failed to load sections data", error);
 
       setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load sections data",
+        error instanceof Error ? error.message : "Failed to load sections data",
       );
     } finally {
       setIsLoading(false);
@@ -118,9 +98,7 @@ export default function SectionsPage() {
     }
 
     return Array.from(groups.values()).sort(
-      (a, b) =>
-        a[0].class.displayOrder -
-        b[0].class.displayOrder,
+      (a, b) => a[0].class.displayOrder - b[0].class.displayOrder,
     );
   }, [sections]);
 
@@ -143,11 +121,7 @@ export default function SectionsPage() {
     setAcademicSessionId(section.academicSessionId);
     setName(section.name);
 
-    setCapacity(
-      section.capacity !== null
-        ? String(section.capacity)
-        : "",
-    );
+    setCapacity(section.capacity !== null ? String(section.capacity) : "");
 
     setError(null);
     setIsModalOpen(true);
@@ -167,9 +141,7 @@ export default function SectionsPage() {
     setCapacity("");
   };
 
-  const handleSubmit = async (
-    event: React.FormEvent,
-  ) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!accessToken) {
@@ -182,9 +154,7 @@ export default function SectionsPage() {
     }
 
     if (!academicSessionId) {
-      setError(
-        "Please select an academic session.",
-      );
+      setError("Please select an academic session.");
       return;
     }
 
@@ -203,9 +173,7 @@ export default function SectionsPage() {
         parsedCapacity < 1 ||
         parsedCapacity > 32767
       ) {
-        setError(
-          "Capacity must be an integer between 1 and 32767.",
-        );
+        setError("Capacity must be an integer between 1 and 32767.");
         return;
       }
 
@@ -217,54 +185,42 @@ export default function SectionsPage() {
 
     try {
       if (editingSection) {
-        const updatedSection =
-          await updateSection(
-            editingSection.id,
-            {
-              classId,
-              academicSessionId,
-              name: name.trim(),
-              capacity: capacityValue,
-            },
-            accessToken,
-          );
+        const updatedSection = await updateSection(
+          editingSection.id,
+          {
+            classId,
+            academicSessionId,
+            name: name.trim(),
+            capacity: capacityValue,
+          },
+          accessToken,
+        );
 
         setSections((currentSections) =>
           currentSections.map((section) =>
-            section.id === updatedSection.id
-              ? updatedSection
-              : section,
+            section.id === updatedSection.id ? updatedSection : section,
           ),
         );
       } else {
-        const newSection =
-          await createSection(
-            {
-              classId,
-              academicSessionId,
-              name: name.trim(),
-              capacity: capacityValue,
-            },
-            accessToken,
-          );
+        const newSection = await createSection(
+          {
+            classId,
+            academicSessionId,
+            name: name.trim(),
+            capacity: capacityValue,
+          },
+          accessToken,
+        );
 
-        setSections((currentSections) => [
-          ...currentSections,
-          newSection,
-        ]);
+        setSections((currentSections) => [...currentSections, newSection]);
       }
 
       closeModal();
     } catch (error) {
-      console.error(
-        "Failed to save section",
-        error,
-      );
+      console.error("Failed to save section", error);
 
       setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to save section",
+        error instanceof Error ? error.message : "Failed to save section",
       );
     } finally {
       setIsSaving(false);
@@ -281,8 +237,7 @@ export default function SectionsPage() {
           </h1>
 
           <p className="text-xs text-muted-foreground">
-            Manage class sections for academic
-            sessions.
+            Manage class sections for academic sessions.
           </p>
         </div>
 
@@ -313,13 +268,10 @@ export default function SectionsPage() {
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <School className="mb-3 h-8 w-8 text-muted-foreground" />
 
-            <h3 className="text-sm font-semibold">
-              No sections found
-            </h3>
+            <h3 className="text-sm font-semibold">No sections found</h3>
 
             <p className="mt-1 text-xs text-muted-foreground">
-              Create your first section to begin
-              managing the class structure.
+              Create your first section to begin managing the class structure.
             </p>
 
             <Button
@@ -332,7 +284,7 @@ export default function SectionsPage() {
           </CardContent>
         </Card>
       ) : (
-        /* 
+        /*
          * Four classes per row on large screens.
          * Each class has its own vertically scrollable
          * section list.
@@ -359,7 +311,7 @@ export default function SectionsPage() {
                       </CardTitle>
 
                       <p className="truncate text-xs text-muted-foreground">
-                        {firstSection.academicSession.name}
+                        Sections
                       </p>
                     </div>
                   </div>
@@ -369,9 +321,7 @@ export default function SectionsPage() {
                 <CardContent className="min-h-0">
                   <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
                     {classSections
-                      .sort((a, b) =>
-                        a.name.localeCompare(b.name),
-                      )
+                      .sort((a, b) => a.name.localeCompare(b.name))
                       .map((section) => (
                         <div
                           key={section.id}
@@ -383,9 +333,11 @@ export default function SectionsPage() {
                             </p>
 
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Capacity:{" "}
-                              {section.capacity ??
-                                "Not set"}
+                              Academic Session: {section.academicSession.name}
+                            </p>
+
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Capacity: {section.capacity ?? "Not set"}
                             </p>
                           </div>
 
@@ -393,9 +345,7 @@ export default function SectionsPage() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            onClick={() =>
-                              openEditModal(section)
-                            }
+                            onClick={() => openEditModal(section)}
                             className="ml-2 h-8 w-8 shrink-0 text-slate-500 hover:text-blue-600"
                           >
                             <Pencil className="h-3.5 w-3.5" />
@@ -418,9 +368,7 @@ export default function SectionsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>
-                    {editingSection
-                      ? "Edit Section"
-                      : "Create Section"}
+                    {editingSection ? "Edit Section" : "Create Section"}
                   </CardTitle>
 
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -441,33 +389,21 @@ export default function SectionsPage() {
             </CardHeader>
 
             <CardContent>
-              <form
-                onSubmit={handleSubmit}
-                className="space-y-4"
-              >
+              <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Class */}
                 <div className="space-y-2">
-                  <label className="text-xs font-medium">
-                    Class
-                  </label>
+                  <label className="text-xs font-medium">Class</label>
 
                   <select
                     value={classId}
-                    onChange={(event) =>
-                      setClassId(event.target.value)
-                    }
+                    onChange={(event) => setClassId(event.target.value)}
                     disabled={isSaving}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
-                    <option value="">
-                      Select class
-                    </option>
+                    <option value="">Select class</option>
 
                     {classes.map((schoolClass) => (
-                      <option
-                        key={schoolClass.id}
-                        value={schoolClass.id}
-                      >
+                      <option key={schoolClass.id} value={schoolClass.id}>
                         {schoolClass.name}
                       </option>
                     ))}
@@ -483,44 +419,29 @@ export default function SectionsPage() {
                   <select
                     value={academicSessionId}
                     onChange={(event) =>
-                      setAcademicSessionId(
-                        event.target.value,
-                      )
+                      setAcademicSessionId(event.target.value)
                     }
                     disabled={isSaving}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
-                    <option value="">
-                      Select academic session
-                    </option>
+                    <option value="">Select academic session</option>
 
-                    {academicSessions.map(
-                      (session) => (
-                        <option
-                          key={session.id}
-                          value={session.id}
-                        >
-                          {session.name}
-                          {session.isCurrent
-                            ? " (Current)"
-                            : ""}
-                        </option>
-                      ),
-                    )}
+                    {academicSessions.map((session) => (
+                      <option key={session.id} value={session.id}>
+                        {session.name}
+                        {session.isCurrent ? " (Current)" : ""}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 {/* Section Name */}
                 <div className="space-y-2">
-                  <label className="text-xs font-medium">
-                    Section Name
-                  </label>
+                  <label className="text-xs font-medium">Section Name</label>
 
                   <Input
                     value={name}
-                    onChange={(event) =>
-                      setName(event.target.value)
-                    }
+                    onChange={(event) => setName(event.target.value)}
                     placeholder="Example: A"
                     maxLength={10}
                     disabled={isSaving}
@@ -529,18 +450,14 @@ export default function SectionsPage() {
 
                 {/* Capacity */}
                 <div className="space-y-2">
-                  <label className="text-xs font-medium">
-                    Capacity
-                  </label>
+                  <label className="text-xs font-medium">Capacity</label>
 
                   <Input
                     type="number"
                     min="1"
                     max="32767"
                     value={capacity}
-                    onChange={(event) =>
-                      setCapacity(event.target.value)
-                    }
+                    onChange={(event) => setCapacity(event.target.value)}
                     placeholder="Example: 45"
                     disabled={isSaving}
                   />

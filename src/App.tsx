@@ -39,6 +39,7 @@ import AccessManagementPage from "@/pages/access-management";
 import DesignationsPage from "@/pages/designations/index";
 import RolesPage from "./pages/roles/index";
 import EmployeesPage from "@/pages/employees/index";
+import TeacherSubjectAssignmentsPage from "./pages/teacher-subjectr-assignments";
 
 export function App() {
   return (
@@ -57,6 +58,10 @@ export function App() {
           <Route path="/designations" element={<DesignationsPage />} />
           <Route path="/roles" element={<RolesPage />} />
           <Route path="/employees" element={<EmployeesPage />} />
+          <Route
+            path="/teacher-subject-assignments"
+            element={<TeacherSubjectAssignmentsPage />}
+          />
           <Route path="/students" element={<StudentsPage />} />
           <Route path="/admissions" element={<AdmissionsPage />} />
           <Route path="/classes" element={<ClassesPage />} />

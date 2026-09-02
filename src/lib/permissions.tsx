@@ -146,6 +146,11 @@ export const MODULE_ROUTES: NavItem[] = [
     iconName: "BookOpenCheck",
   },
   { title: "Section Management", href: "/sections", iconName: "layers" },
+  {
+    title: "Teacher Subject Assignment",
+    href: "/teacher-subject-assignments",
+    iconName: "layers",
+  },
 
   { title: "Students", href: "/students", iconName: "Users" },
   { title: "Admissions", href: "/admissions", iconName: "UserPlus" },
