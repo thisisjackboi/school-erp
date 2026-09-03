@@ -18,7 +18,7 @@ function getAuthHeaders(accessToken?: string | null) {
 }
 
 export interface CreateEmployeePayload {
-  createUser: boolean;
+  createUser?: boolean;
 
   user?: {
     username: string;

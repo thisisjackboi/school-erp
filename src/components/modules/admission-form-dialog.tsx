@@ -1,116 +1,467 @@
 "use client";
 
-import React, { useState } from "react";
-import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import React, { useEffect, useState } from "react";
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { StepForm } from "@/components/enterprise/step-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { UserPlus, Upload, ArrowRight, ArrowLeft, Check } from "lucide-react";
+import { UserPlus, ArrowRight, ArrowLeft, Check } from "lucide-react";
+
+import { useAuth } from "@/lib/auth/auth-context";
+import { createAdmission, updateAdmission } from "@/lib/api/admissions.api";
+import { getClasses } from "@/lib/api/classes.api";
+import { getAcademicSessions } from "@/lib/api/academic-sessions.api";
+
+import type { Admission } from "@/lib/types/admission";
+import type { SchoolClass } from "@/lib/types/class";
+import type { AcademicSession } from "@/lib/types/academic-session";
 
 interface AdmissionFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  admission?: Admission | null;
+  onSuccess?: () => void;
 }
 
-export function AdmissionFormDialog({ open, onOpenChange }: AdmissionFormDialogProps) {
-  const [currentStep, setCurrentStep] = useState(0);
+export function AdmissionFormDialog({
+  open,
+  onOpenChange,
+  admission = null,
+  onSuccess,
+}: AdmissionFormDialogProps) {
+  const { accessToken } = useAuth();
   const { toast } = useToast();
 
+  const [currentStep, setCurrentStep] = useState(0);
+  const [classes, setClasses] = useState<SchoolClass[]>([]);
+  const [academicSessions, setAcademicSessions] = useState<AcademicSession[]>(
+    [],
+  );
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
+    applicationNumber: "",
     firstName: "",
     lastName: "",
     dob: "",
-    gender: "Male",
-    gradeApplying: "Grade 10",
-    parentName: "",
-    parentPhone: "",
-    parentEmail: "",
-    address: "",
-    previousSchool: "",
+    gender: "MALE",
+    applyingForClassId: "",
+    academicSessionId: "",
+    guardianName: "",
+    guardianPhone: "",
   });
 
+  const isEditMode = !!admission;
+
   const steps = [
-    { title: "Student Info", description: "Name, DOB & Gender" },
-    { title: "Parent Details", description: "Contact & Address" },
-    { title: "Previous School", description: "Academic History" },
-    { title: "Upload Docs", description: "Birth Cert & Photos" },
+    {
+      title: "Student Info",
+      description: "Name, DOB & Class",
+    },
+    {
+      title: "Guardian Details",
+      description: "Contact information",
+    },
+    {
+      title: "Review",
+      description: "Verify application",
+    },
   ];
 
-  const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep((s) => s + 1);
+  useEffect(() => {
+    if (!open || !accessToken) {
+      return;
+    }
+
+    if (admission) {
+      setFormData({
+        applicationNumber: admission.applicationNumber || "",
+        firstName: admission.applicantFirstName || "",
+        lastName: admission.applicantLastName || "",
+        dob: admission.dateOfBirth ? admission.dateOfBirth.substring(0, 10) : "",
+        gender: admission.gender || "MALE",
+        applyingForClassId: admission.applyingForClassId || "",
+        academicSessionId: admission.academicSessionId || "",
+        guardianName: admission.guardianName || "",
+        guardianPhone: admission.guardianPhone || "",
+      });
     } else {
-      // Submit Form
-      toast("Student Admission Submitted Successfully!", `Admission Reg No: ADM-2026-${Math.floor(100 + Math.random() * 900)}`, "success");
+      setFormData({
+        applicationNumber: "",
+        firstName: "",
+        lastName: "",
+        dob: "",
+        gender: "MALE",
+        applyingForClassId: "",
+        academicSessionId: "",
+        guardianName: "",
+        guardianPhone: "",
+      });
+    }
+    setCurrentStep(0);
+
+    const loadOptions = async () => {
+      setIsLoadingOptions(true);
+      setError(null);
+
+      try {
+        const [classesData, sessionsData] = await Promise.all([
+          getClasses(accessToken),
+          getAcademicSessions(accessToken),
+        ]);
+
+        setClasses(classesData);
+        setAcademicSessions(sessionsData);
+
+        if (!admission) {
+          const currentSession = sessionsData.find(
+            (session) => session.isCurrent,
+          );
+
+          if (currentSession) {
+            setFormData((current) => ({
+              ...current,
+              academicSessionId: current.academicSessionId || currentSession.id,
+            }));
+          } else if (sessionsData.length > 0) {
+            setFormData((current) => ({
+              ...current,
+              academicSessionId: current.academicSessionId || sessionsData[0].id,
+            }));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load admission options", error);
+
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Failed to load classes and academic sessions",
+        );
+      } finally {
+        setIsLoadingOptions(false);
+      }
+    };
+
+    void loadOptions();
+  }, [open, accessToken, admission]);
+
+  const updateField = (field: keyof typeof formData, value: string) => {
+    setFormData((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const validateCurrentStep = () => {
+    setError(null);
+
+    if (currentStep === 0) {
+      if (!formData.applicationNumber.trim()) {
+        setError("Application number is required.");
+        return false;
+      }
+
+      if (!formData.firstName.trim()) {
+        setError("First name is required.");
+        return false;
+      }
+
+      if (!formData.lastName.trim()) {
+        setError("Last name is required.");
+        return false;
+      }
+
+      if (!formData.dob) {
+        setError("Date of birth is required.");
+        return false;
+      }
+
+      if (!formData.applyingForClassId) {
+        setError("Please select a class.");
+        return false;
+      }
+
+      if (!formData.academicSessionId) {
+        setError("Please select an academic session.");
+        return false;
+      }
+    }
+
+    if (currentStep === 1) {
+      if (!formData.guardianName.trim()) {
+        setError("Guardian name is required.");
+        return false;
+      }
+
+      if (!formData.guardianPhone.trim()) {
+        setError("Guardian phone is required.");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleNext = () => {
+    if (!validateCurrentStep()) {
+      return;
+    }
+
+    if (currentStep < steps.length - 1) {
+      setCurrentStep((current) => current + 1);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!accessToken) {
+      setError("Authentication session expired. Please login again.");
+      return;
+    }
+
+    if (!validateCurrentStep()) {
+      return;
+    }
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      if (isEditMode && admission) {
+        const updated = await updateAdmission(
+          admission.id,
+          {
+            applicantFirstName: formData.firstName.trim(),
+            applicantLastName: formData.lastName.trim(),
+            dateOfBirth: formData.dob,
+            gender: formData.gender as "MALE" | "FEMALE" | "OTHER",
+            applyingForClassId: formData.applyingForClassId,
+            academicSessionId: formData.academicSessionId,
+            guardianName: formData.guardianName.trim(),
+            guardianPhone: formData.guardianPhone.trim(),
+          },
+          accessToken,
+        );
+
+        toast(
+          "Admission Updated Successfully",
+          `Application No: ${updated.applicationNumber}`,
+          "success",
+        );
+      } else {
+        const created = await createAdmission(
+          {
+            applicationNumber: formData.applicationNumber.trim(),
+            applicantFirstName: formData.firstName.trim(),
+            applicantLastName: formData.lastName.trim(),
+            dateOfBirth: formData.dob,
+            gender: formData.gender as "MALE" | "FEMALE" | "OTHER",
+            applyingForClassId: formData.applyingForClassId,
+            academicSessionId: formData.academicSessionId,
+            guardianName: formData.guardianName.trim(),
+            guardianPhone: formData.guardianPhone.trim(),
+          },
+          accessToken,
+        );
+
+        toast(
+          "Admission Created Successfully",
+          `Application No: ${created.applicationNumber}`,
+          "success",
+        );
+      }
+
       onOpenChange(false);
-      setCurrentStep(0);
+      resetForm();
+      onSuccess?.();
+    } catch (error) {
+      console.error("Failed to save admission", error);
+
+      setError(
+        error instanceof Error ? error.message : "Failed to save admission",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const resetForm = () => {
+    setCurrentStep(0);
+
+    setFormData({
+      applicationNumber: "",
+      firstName: "",
+      lastName: "",
+      dob: "",
+      gender: "MALE",
+      applyingForClassId: "",
+      academicSessionId: "",
+      guardianName: "",
+      guardianPhone: "",
+    });
+
+    setError(null);
+  };
+
+  const handleClose = (value: boolean) => {
+    if (isSaving) {
+      return;
+    }
+
+    onOpenChange(value);
+
+    if (!value) {
+      resetForm();
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogHeader>
         <DialogTitle className="flex items-center space-x-2">
           <UserPlus className="h-5 w-5 text-blue-600" />
-          <span>New Student Admission Application</span>
+          <span>{isEditMode ? "Edit Admission Application" : "New Student Admission Application"}</span>
         </DialogTitle>
+
         <DialogDescription>
-          Complete the step-by-step admission application form for academic session 2026-2027.
+          {isEditMode ? "Update the admission application details." : "Create a new admission application."}
         </DialogDescription>
       </DialogHeader>
 
       <div className="mt-4">
-        <StepForm steps={steps} currentStep={currentStep} onStepClick={(s) => setCurrentStep(s)}>
+        <StepForm
+          steps={steps}
+          currentStep={currentStep}
+          onStepClick={setCurrentStep}
+        >
           {currentStep === 0 && (
             <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="col-span-2">
+                <label className="font-semibold block mb-1">
+                  Application Number *
+                </label>
+
+                <Input
+                  placeholder="e.g. ADM-2026-001"
+                  value={formData.applicationNumber}
+                  disabled={isEditMode}
+                  onChange={(event) =>
+                    updateField("applicationNumber", event.target.value)
+                  }
+                />
+              </div>
+
               <div>
                 <label className="font-semibold block mb-1">First Name *</label>
+
                 <Input
-                  placeholder="e.g. Aarav"
+                  placeholder="First name"
                   value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  onChange={(event) =>
+                    updateField("firstName", event.target.value)
+                  }
                 />
               </div>
+
               <div>
                 <label className="font-semibold block mb-1">Last Name *</label>
+
                 <Input
-                  placeholder="e.g. Sharma"
+                  placeholder="Last name"
                   value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  onChange={(event) =>
+                    updateField("lastName", event.target.value)
+                  }
                 />
               </div>
+
               <div>
-                <label className="font-semibold block mb-1">Date of Birth *</label>
+                <label className="font-semibold block mb-1">
+                  Date of Birth *
+                </label>
+
                 <Input
                   type="date"
                   value={formData.dob}
-                  onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                  onChange={(event) => updateField("dob", event.target.value)}
                 />
               </div>
+
               <div>
                 <label className="font-semibold block mb-1">Gender *</label>
+
                 <select
                   value={formData.gender}
-                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                  onChange={(event) =>
+                    updateField("gender", event.target.value)
+                  }
                   className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
                 >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="OTHER">Other</option>
                 </select>
               </div>
-              <div className="col-span-2">
-                <label className="font-semibold block mb-1">Grade Applying For *</label>
+
+              <div>
+                <label className="font-semibold block mb-1">
+                  Applying For Class *
+                </label>
+
                 <select
-                  value={formData.gradeApplying}
-                  onChange={(e) => setFormData({ ...formData, gradeApplying: e.target.value })}
+                  value={formData.applyingForClassId}
+                  onChange={(event) =>
+                    updateField("applyingForClassId", event.target.value)
+                  }
+                  disabled={isLoadingOptions}
                   className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
                 >
-                  <option value="Grade 9">Grade 9</option>
-                  <option value="Grade 10">Grade 10</option>
-                  <option value="Grade 11">Grade 11 Science/Commerce</option>
-                  <option value="Grade 12">Grade 12 Science/Commerce</option>
+                  <option value="">
+                    {isLoadingOptions ? "Loading classes..." : "Select class"}
+                  </option>
+
+                  {classes.map((schoolClass) => (
+                    <option key={schoolClass.id} value={schoolClass.id}>
+                      {schoolClass.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold block mb-1">
+                  Academic Session *
+                </label>
+
+                <select
+                  value={formData.academicSessionId}
+                  onChange={(event) =>
+                    updateField("academicSessionId", event.target.value)
+                  }
+                  disabled={isLoadingOptions}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
+                >
+                  <option value="">
+                    {isLoadingOptions
+                      ? "Loading sessions..."
+                      : "Select session"}
+                  </option>
+
+                  {academicSessions.map((session) => (
+                    <option key={session.id} value={session.id}>
+                      {session.name}
+                      {session.isCurrent ? " (Current)" : ""}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -119,96 +470,134 @@ export function AdmissionFormDialog({ open, onOpenChange }: AdmissionFormDialogP
           {currentStep === 1 && (
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="col-span-2">
-                <label className="font-semibold block mb-1">Parent / Guardian Full Name *</label>
+                <label className="font-semibold block mb-1">
+                  Guardian Name *
+                </label>
+
                 <Input
-                  placeholder="e.g. Rajesh Sharma"
-                  value={formData.parentName}
-                  onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
+                  placeholder="Parent / Guardian full name"
+                  value={formData.guardianName}
+                  onChange={(event) =>
+                    updateField("guardianName", event.target.value)
+                  }
                 />
               </div>
-              <div>
-                <label className="font-semibold block mb-1">Mobile Phone Number *</label>
-                <Input
-                  placeholder="+91 98765 43210"
-                  value={formData.parentPhone}
-                  onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="font-semibold block mb-1">Email Address</label>
-                <Input
-                  placeholder="parent@example.com"
-                  value={formData.parentEmail}
-                  onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
-                />
-              </div>
+
               <div className="col-span-2">
-                <label className="font-semibold block mb-1">Residential Address *</label>
+                <label className="font-semibold block mb-1">
+                  Guardian Phone *
+                </label>
+
                 <Input
-                  placeholder="House No, Street, Colony, City"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="9876543210"
+                  value={formData.guardianPhone}
+                  onChange={(event) =>
+                    updateField("guardianPhone", event.target.value)
+                  }
                 />
               </div>
             </div>
           )}
 
           {currentStep === 2 && (
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="col-span-2">
-                <label className="font-semibold block mb-1">Previous School Name</label>
-                <Input
-                  placeholder="e.g. St. Xavier's High School"
-                  value={formData.previousSchool}
-                  onChange={(e) => setFormData({ ...formData, previousSchool: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="font-semibold block mb-1">Last Grade Attended</label>
-                <Input placeholder="Grade 9" />
-              </div>
-              <div>
-                <label className="font-semibold block mb-1">Overall Percentage / CGPA</label>
-                <Input placeholder="92.4%" />
-              </div>
-            </div>
-          )}
-
-          {currentStep === 3 && (
             <div className="space-y-3 text-xs">
-              <div className="p-4 border-2 border-dashed border-border rounded-lg text-center bg-slate-50 dark:bg-slate-900/50">
-                <Upload className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-                <p className="font-bold text-slate-800 dark:text-slate-200">Upload Birth Certificate & Transfer Certificate</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Drag & drop files or click to browse (PDF, JPG up to 5MB)</p>
-                <Button size="sm" variant="outline" className="mt-3 text-xs">Choose File</Button>
+              <div className="rounded-lg border p-4 space-y-2">
+                <h3 className="font-bold">Application Summary</h3>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-muted-foreground">
+                      Application No:
+                    </span>{" "}
+                    <strong>{formData.applicationNumber}</strong>
+                  </div>
+
+                  <div>
+                    <span className="text-muted-foreground">Student:</span>{" "}
+                    <strong>
+                      {formData.firstName} {formData.lastName}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span className="text-muted-foreground">Class:</span>{" "}
+                    <strong>
+                      {
+                        classes.find(
+                          (item) => item.id === formData.applyingForClassId,
+                        )?.name
+                      }
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span className="text-muted-foreground">Session:</span>{" "}
+                    <strong>
+                      {
+                        academicSessions.find(
+                          (item) => item.id === formData.academicSessionId,
+                        )?.name
+                      }
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span className="text-muted-foreground">Guardian:</span>{" "}
+                    <strong>{formData.guardianName}</strong>
+                  </div>
+
+                  <div>
+                    <span className="text-muted-foreground">Phone:</span>{" "}
+                    <strong>{formData.guardianPhone}</strong>
+                  </div>
+                </div>
               </div>
             </div>
           )}
         </StepForm>
       </div>
 
+      {error && (
+        <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {error}
+        </div>
+      )}
+
       <DialogFooter>
         <div className="flex items-center justify-between w-full">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentStep((s) => Math.max(s - 1, 0))}
-            disabled={currentStep === 0}
+            onClick={() =>
+              setCurrentStep((current) => Math.max(current - 1, 0))
+            }
+            disabled={currentStep === 0 || isSaving}
           >
-            <ArrowLeft className="mr-1 h-3.5 w-3.5" /> Back
+            <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+            Back
           </Button>
 
-          <Button size="sm" onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">
-            {currentStep === steps.length - 1 ? (
-              <>
-                <Check className="mr-1 h-3.5 w-3.5" /> Submit Admission
-              </>
-            ) : (
-              <>
-                Next Step <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </>
-            )}
-          </Button>
+          {currentStep < steps.length - 1 ? (
+            <Button
+              size="sm"
+              onClick={handleNext}
+              disabled={isLoadingOptions || isSaving}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Next Step
+              <ArrowRight className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={isSaving}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Check className="mr-1 h-3.5 w-3.5" />
+              {isSaving ? "Saving..." : isEditMode ? "Update Admission" : "Submit Admission"}
+            </Button>
+          )}
         </div>
       </DialogFooter>
     </Dialog>

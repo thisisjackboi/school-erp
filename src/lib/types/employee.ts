@@ -8,6 +8,8 @@ export interface EmployeeUser {
   id: string;
   username: string;
   userType: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface EmployeeDesignation {

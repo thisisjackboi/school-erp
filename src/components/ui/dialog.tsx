@@ -36,20 +36,70 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
   );
 }
 
-export function DialogHeader({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("flex flex-col space-y-1 text-left pb-4 border-b border-border", className)} {...props}>{children}</div>;
+export function DialogHeader({
+  className,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col space-y-1 text-left pb-4 border-b border-border",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
 }
 
-export function DialogTitle({ className, children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h2 className={cn("text-lg font-semibold text-slate-900 dark:text-slate-100", className)} {...props}>{children}</h2>;
+export function DialogTitle({
+  className,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLHeadingElement>) {
+  return (
+    <h2
+      className={cn(
+        "text-lg font-semibold text-slate-900 dark:text-slate-100",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </h2>
+  );
 }
 
-export function DialogDescription({ className, children, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn("text-xs text-muted-foreground", className)} {...props}>{children}</p>;
+export function DialogDescription({
+  className,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLParagraphElement>) {
+  return (
+    <p className={cn("text-xs text-muted-foreground", className)} {...props}>
+      {children}
+    </p>
+  );
 }
 
-export function DialogFooter({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("flex items-center justify-end space-x-2 pt-4 border-t border-border mt-6", className)} {...props}>{children}</div>;
+export function DialogFooter({
+  className,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-end space-x-2 pt-4 border-t border-border mt-6",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function DialogClose({ onClick }: { onClick: () => void }) {

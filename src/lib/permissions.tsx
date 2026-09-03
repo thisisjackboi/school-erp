@@ -156,9 +156,9 @@ export const MODULE_ROUTES: NavItem[] = [
     href: "/teacher-subject-assignments",
     iconName: "layers",
   },
+  { title: "Admissions", href: "/admissions", iconName: "UserPlus" },
 
   { title: "Students", href: "/students", iconName: "Users" },
-  { title: "Admissions", href: "/admissions", iconName: "UserPlus" },
 
   { title: "Subjects", href: "/subjects", iconName: "BookOpen" },
 
