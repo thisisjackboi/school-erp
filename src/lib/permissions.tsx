@@ -114,6 +114,11 @@ export interface NavItem {
 export const MODULE_ROUTES: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", iconName: "LayoutDashboard" },
   {
+    title: "Users",
+    href: "/users",
+    iconName: "ShieldCheck",
+  },
+  {
     title: "Permissions",
     href: "/permissions",
     iconName: "ShieldCheck",

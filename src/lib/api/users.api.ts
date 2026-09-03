@@ -1,6 +1,26 @@
 import { API_BASE_URL } from "./config";
 import type { PaginatedResponse, RbacUser, Role } from "../types/rbac";
 
+function getAuthHeaders(accessToken?: string | null) {
+  return {
+    ...(accessToken
+      ? {
+          Authorization: `Bearer ${accessToken}`,
+        }
+      : {}),
+  };
+}
+
+export type UserType = "SYSTEM" | "EMPLOYEE" | "STUDENT" | "GUARDIAN";
+
+export interface CreateUserPayload {
+  username: string;
+  email?: string;
+  phone?: string;
+  password: string;
+  userType: UserType;
+}
+
 export async function getUsers(
   page = 1,
   limit = 50,
@@ -17,13 +37,7 @@ export async function getUsers(
   }
 
   const response = await fetch(`${API_BASE_URL}/users?${params.toString()}`, {
-    headers: {
-      ...(accessToken
-        ? {
-            Authorization: `Bearer ${accessToken}`,
-          }
-        : {}),
-    },
+    headers: getAuthHeaders(accessToken),
   });
 
   const result = await response.json();
@@ -36,26 +50,16 @@ export async function getUsers(
 }
 
 export async function createUser(
-  payload: {
-    username: string;
-    email?: string;
-    phone?: string;
-    password: string;
-    userType: "STUDENT" | "EMPLOYEE" | "GUARDIAN" | "SYSTEM";
-  },
+  data: CreateUserPayload,
   accessToken?: string | null,
 ): Promise<RbacUser> {
   const response = await fetch(`${API_BASE_URL}/users`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(accessToken
-        ? {
-            Authorization: `Bearer ${accessToken}`,
-          }
-        : {}),
+      ...getAuthHeaders(accessToken),
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(data),
   });
 
   const result = await response.json();
@@ -72,13 +76,7 @@ export async function getUserRoles(
   accessToken?: string | null,
 ): Promise<Role[]> {
   const response = await fetch(`${API_BASE_URL}/users/${userId}/roles`, {
-    headers: {
-      ...(accessToken
-        ? {
-            Authorization: `Bearer ${accessToken}`,
-          }
-        : {}),
-    },
+    headers: getAuthHeaders(accessToken),
   });
 
   const result = await response.json();
@@ -102,11 +100,7 @@ export async function updateUserRoles(
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      ...(accessToken
-        ? {
-            Authorization: `Bearer ${accessToken}`,
-          }
-        : {}),
+      ...getAuthHeaders(accessToken),
     },
     body: JSON.stringify({
       roleIds,

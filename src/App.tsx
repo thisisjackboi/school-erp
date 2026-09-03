@@ -5,6 +5,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 
 // Import all pages
 import LoginPage from "@/pages/login";
+import UsersPage from "@/pages/users/index";
 import DashboardPage from "@/pages/dashboard";
 import PermissionsPage from "@/pages/permissions/index";
 import StudentsPage from "@/pages/students";
@@ -50,6 +51,7 @@ export function App() {
       {/* Authenticated Dashboard App Layout & Module Routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
+          <Route path="/users" element={<UsersPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/access-management" element={<AccessManagementPage />} />
 
