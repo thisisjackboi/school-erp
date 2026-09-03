@@ -12,17 +12,29 @@ import {
   getAdmissions,
   deleteAdmission,
   updateAdmissionStatus,
+  convertAdmission,
 } from "@/lib/api/admissions.api";
 
 import { useAuth } from "@/lib/auth/auth-context";
 import { getClasses } from "@/lib/api/classes.api";
 import { getAcademicSessions } from "@/lib/api/academic-sessions.api";
+import { getSections } from "@/lib/api/sections.api";
 
 import type { Admission, AdmissionStatus } from "@/lib/types/admission";
 import type { SchoolClass } from "@/lib/types/class";
 import type { AcademicSession } from "@/lib/types/academic-session";
+import type { Section } from "@/lib/types/section";
 
-import { Eye, Pencil, Plus, Trash2, UserCheck, X } from "lucide-react";
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+
+import { Eye, Pencil, Plus, ShieldCheck, Trash2, UserCheck, X } from "lucide-react";
 
 const ADMISSION_STATUSES = [
   "APPLIED",
@@ -49,10 +61,95 @@ export default function AdmissionsPage() {
   );
 
   const [isFormOpen, setIsFormOpen] = useState(false);
-
   const [loading, setLoading] = useState(true);
 
+  // Admission Conversion state
+  const [convertAdmissionTarget, setConvertAdmissionTarget] = useState<Admission | null>(null);
+  const [availableSections, setAvailableSections] = useState<Section[]>([]);
+  const [loadingSections, setLoadingSections] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [convertForm, setConvertForm] = useState({
+    sectionId: "",
+    username: "",
+    password: "",
+  });
+
   const { toast } = useToast();
+
+  const handleOpenConvert = async (admission: Admission) => {
+    setConvertAdmissionTarget(admission);
+    const sanitizedUsername = `${admission.applicantFirstName}${admission.applicantLastName}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+    setConvertForm({
+      sectionId: "",
+      username: sanitizedUsername || admission.applicationNumber.toLowerCase().replace(/[^a-z0-9]/g, ""),
+      password: "",
+    });
+
+    if (!accessToken) return;
+    try {
+      setLoadingSections(true);
+      const allSections = await getSections(accessToken);
+      const filtered = allSections.filter(
+        (s) => s.classId === admission.applyingForClassId
+      );
+      setAvailableSections(filtered.length > 0 ? filtered : allSections);
+    } catch {
+      toast("Failed to load sections", "Unable to fetch sections for assignment", "error");
+    } finally {
+      setLoadingSections(false);
+    }
+  };
+
+  const handleConvertSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!convertAdmissionTarget || !accessToken) return;
+
+    if (!convertForm.sectionId) {
+      toast("Section required", "Please select a section for student enrollment.", "error");
+      return;
+    }
+    if (!convertForm.username.trim()) {
+      toast("Username required", "Please enter a student login username.", "error");
+      return;
+    }
+    if (!convertForm.password || convertForm.password.length < 8) {
+      toast("Invalid password", "Password must be at least 8 characters long.", "error");
+      return;
+    }
+
+    try {
+      setConverting(true);
+      await convertAdmission(
+        convertAdmissionTarget.id,
+        {
+          sectionId: convertForm.sectionId,
+          username: convertForm.username.trim(),
+          password: convertForm.password,
+        },
+        accessToken,
+      );
+
+      toast(
+        "Student Created",
+        `Candidate ${convertAdmissionTarget.applicantFirstName} was successfully converted to an active student!`,
+        "success",
+      );
+
+      setConvertAdmissionTarget(null);
+      setSelectedAdmission(null);
+      await loadAdmissions();
+    } catch (err) {
+      toast(
+        "Conversion Failed",
+        err instanceof Error ? err.message : "Unable to convert admission to student.",
+        "error",
+      );
+    } finally {
+      setConverting(false);
+    }
+  };
 
   const loadAdmissions = React.useCallback(async () => {
     if (!accessToken) {
@@ -271,6 +368,24 @@ export default function AdmissionsPage() {
                   View
                 </Button>
 
+                {row.status === "APPROVED" && !row.convertedStudentId && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleOpenConvert(row)}
+                    className="h-8 px-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs"
+                    title="Convert this approved candidate into an active student"
+                  >
+                    <UserCheck className="mr-1 h-3.5 w-3.5" />
+                    Convert
+                  </Button>
+                )}
+
+                {row.convertedStudentId && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800">
+                    Enrolled
+                  </span>
+                )}
+
                 <Button
                   variant="ghost"
                   size="sm"
@@ -464,19 +579,27 @@ export default function AdmissionsPage() {
                 !selectedAdmission.convertedStudentId && (
                   <Button
                     size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      toast(
-                        "Conversion",
-                        "Admission conversion will be handled from the conversion workflow.",
-                        "info",
-                      );
-                    }}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={() => handleOpenConvert(selectedAdmission)}
                   >
                     <UserCheck className="mr-1 h-3.5 w-3.5" />
                     Convert to Student
                   </Button>
                 )}
+
+              {selectedAdmission.status !== "APPROVED" &&
+                !selectedAdmission.convertedStudentId && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium self-center bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded border border-amber-200 dark:border-amber-800">
+                    💡 Change status to <strong>APPROVED</strong> to enable Convert to Student
+                  </span>
+                )}
+
+              {selectedAdmission.convertedStudentId && (
+                <div className="inline-flex items-center text-xs text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-md border border-emerald-200 dark:border-emerald-800 font-medium">
+                  <UserCheck className="mr-1.5 h-4 w-4" />
+                  Enrolled as Active Student
+                </div>
+              )}
 
               <Button
                 size="sm"
@@ -504,6 +627,110 @@ export default function AdmissionsPage() {
         admission={editingAdmission}
         onSuccess={loadAdmissions}
       />
+
+      {/* Convert Admission to Student Modal */}
+      <Dialog
+        open={!!convertAdmissionTarget}
+        onOpenChange={(open) => {
+          if (!open) setConvertAdmissionTarget(null);
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle className="flex items-center space-x-2 text-emerald-700 dark:text-emerald-400">
+            <UserCheck className="h-5 w-5" />
+            <span>Convert Admission to Active Student</span>
+          </DialogTitle>
+          <DialogDescription>
+            Assign section and create login credentials for candidate{" "}
+            <strong className="text-foreground">
+              {convertAdmissionTarget?.applicantFirstName}{" "}
+              {convertAdmissionTarget?.applicantLastName}
+            </strong>{" "}
+            (App No: {convertAdmissionTarget?.applicationNumber}).
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleConvertSubmit} className="space-y-4 text-xs mt-2">
+          <div>
+            <label className="font-semibold block mb-1">
+              Select Section *
+            </label>
+            <select
+              value={convertForm.sectionId}
+              onChange={(e) =>
+                setConvertForm((prev) => ({ ...prev, sectionId: e.target.value }))
+              }
+              disabled={loadingSections || converting}
+              className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
+            >
+              <option value="">
+                {loadingSections ? "Loading sections..." : "-- Select Section --"}
+              </option>
+              {availableSections.map((sec) => (
+                <option key={sec.id} value={sec.id}>
+                  {sec.name} {sec.capacity ? `(Capacity: ${sec.capacity})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="font-semibold block mb-1">
+              Student Username *
+            </label>
+            <Input
+              placeholder="e.g. aaravsharma"
+              value={convertForm.username}
+              onChange={(e) =>
+                setConvertForm((prev) => ({ ...prev, username: e.target.value }))
+              }
+              disabled={converting}
+            />
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Unique username for student portal authentication.
+            </p>
+          </div>
+
+          <div>
+            <label className="font-semibold block mb-1">
+              Initial Password *
+            </label>
+            <Input
+              type="password"
+              placeholder="Minimum 8 characters"
+              value={convertForm.password}
+              onChange={(e) =>
+                setConvertForm((prev) => ({ ...prev, password: e.target.value }))
+              }
+              disabled={converting}
+            />
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Must be at least 8 characters long. The student will be prompted to change it on first login.
+            </p>
+          </div>
+
+          <DialogFooter className="pt-3 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setConvertAdmissionTarget(null)}
+              disabled={converting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={converting || loadingSections}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <ShieldCheck className="mr-1.5 h-4 w-4" />
+              {converting ? "Converting..." : "Complete Conversion"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </Dialog>
     </div>
   );
 }
