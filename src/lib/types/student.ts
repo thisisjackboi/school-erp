@@ -7,6 +7,16 @@ export type StudentStatus =
   | "TRANSFERRED"
   | "WITHDRAWN";
 
+export interface StudentEnrollmentContext {
+  id: string;
+  rollNumber: string | null;
+  enrollmentDate: string;
+  status: string;
+  class: { id: string; name: string; displayOrder: number };
+  section: { id: string; name: string };
+  academicSession: { id: string; name: string };
+}
+
 export interface StudentRecord {
   id: string;
   userId: string;
@@ -22,4 +32,6 @@ export interface StudentRecord {
   status: StudentStatus;
   createdAt: string;
   updatedAt: string;
+  // Present only when queried with enrollment filters
+  enrollment?: StudentEnrollmentContext;
 }

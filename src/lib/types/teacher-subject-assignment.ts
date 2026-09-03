@@ -6,6 +6,26 @@ export interface TeacherSubjectAssignment {
   academicSessionId: string;
   createdAt: string;
   updatedAt: string;
+
+  employee?: {
+    id: string;
+    employeeCode: string;
+    firstName: string;
+    lastName: string;
+  };
+  subject?: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  section?: {
+    id: string;
+    name: string;
+  };
+  academicSession?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface CreateTeacherSubjectAssignmentPayload {

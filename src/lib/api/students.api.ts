@@ -43,8 +43,21 @@ export interface UpdateStudentPayload {
 
 export async function getStudents(
   accessToken?: string | null,
+  filters?: {
+    academicSessionId?: string;
+    classId?: string;
+    sectionId?: string;
+  },
 ): Promise<StudentRecord[]> {
-  const response = await fetch(`${API_BASE_URL}/students`, {
+  const params = new URLSearchParams();
+  if (filters?.academicSessionId) params.set("academicSessionId", filters.academicSessionId);
+  if (filters?.classId) params.set("classId", filters.classId);
+  if (filters?.sectionId) params.set("sectionId", filters.sectionId);
+
+  const qs = params.toString();
+  const url = `${API_BASE_URL}/students${qs ? `?${qs}` : ""}`;
+
+  const response = await fetch(url, {
     headers: getAuthHeaders(accessToken),
   });
 

@@ -91,10 +91,36 @@ export default function AdmissionsPage() {
     try {
       setLoadingSections(true);
       const allSections = await getSections(accessToken);
+
+      // Filter sections that belong to BOTH the target class AND the academic session of this admission
       const filtered = allSections.filter(
-        (s) => s.classId === admission.applyingForClassId
+        (s) =>
+          s.classId === admission.applyingForClassId &&
+          s.academicSessionId === admission.academicSessionId,
       );
-      setAvailableSections(filtered.length > 0 ? filtered : allSections);
+
+      if (filtered.length > 0) {
+        setAvailableSections(filtered);
+      } else {
+        // No sections match class+session — show all sections for that class as fallback
+        const classFallback = allSections.filter(
+          (s) => s.classId === admission.applyingForClassId,
+        );
+        setAvailableSections(classFallback);
+        if (classFallback.length === 0) {
+          toast(
+            "No sections found",
+            "No sections are configured for the target class and academic session. Please set up sections first.",
+            "error",
+          );
+        } else {
+          toast(
+            "Section warning",
+            "No sections found for the exact academic session. Showing all sections for the target class.",
+            "info",
+          );
+        }
+      }
     } catch {
       toast("Failed to load sections", "Unable to fetch sections for assignment", "error");
     } finally {
@@ -649,6 +675,28 @@ export default function AdmissionsPage() {
             (App No: {convertAdmissionTarget?.applicationNumber}).
           </DialogDescription>
         </DialogHeader>
+
+        {/* Context: Class & Academic Session this admission belongs to */}
+        {convertAdmissionTarget && (
+          <div className="flex items-center gap-3 text-[11px] bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-md px-3 py-2 text-blue-700 dark:text-blue-300">
+            <span className="font-medium">
+              Class:{" "}
+              <strong>
+                {classes.find((c) => c.id === convertAdmissionTarget.applyingForClassId)?.name || convertAdmissionTarget.applyingForClassId}
+              </strong>
+            </span>
+            <span className="text-blue-400">|</span>
+            <span className="font-medium">
+              Session:{" "}
+              <strong>
+                {academicSessions.find((s) => s.id === convertAdmissionTarget.academicSessionId)?.name || convertAdmissionTarget.academicSessionId}
+              </strong>
+            </span>
+            <span className="ml-auto text-[10px] italic opacity-70">
+              Sections are filtered to match class + session
+            </span>
+          </div>
+        )}
 
         <form onSubmit={handleConvertSubmit} className="space-y-4 text-xs mt-2">
           <div>

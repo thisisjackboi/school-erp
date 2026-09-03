@@ -9,7 +9,7 @@ import UsersPage from "@/pages/users/index";
 import AdmissionsPage from "@/pages/admissions/index";
 import DashboardPage from "@/pages/dashboard";
 import PermissionsPage from "@/pages/permissions/index";
-import StudentsPage from "@/pages/students";
+import StudentsPage from "@/pages/students/index";
 
 import ClassesPage from "@/pages/classes/index";
 import ClassSubjectsPage from "@/pages/class-subjects/index";
