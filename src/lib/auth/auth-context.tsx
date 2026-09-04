@@ -27,18 +27,54 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [accessToken, setAccessTokenState] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("accessToken");
+    }
+    return null;
+  });
+
+  const [user, setUserState] = useState<AuthUser | null>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("authUser");
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
+
   const [isLoading, setIsLoading] = useState(true);
+
+  const saveAuthData = (token: string | null, userData: AuthUser | null) => {
+    setAccessTokenState(token);
+    setUserState(userData);
+
+    if (typeof window !== "undefined") {
+      if (token) {
+        localStorage.setItem("accessToken", token);
+      } else {
+        localStorage.removeItem("accessToken");
+      }
+
+      if (userData) {
+        localStorage.setItem("authUser", JSON.stringify(userData));
+      } else {
+        localStorage.removeItem("authUser");
+      }
+    }
+  };
 
   const login = useCallback(async (credentials: LoginRequest) => {
     setIsLoading(true);
 
     try {
       const result = await loginApi(credentials);
-
-      setAccessToken(result.data.accessToken);
-      setUser(result.data.user);
+      saveAuthData(result.data.accessToken, result.data.user);
     } finally {
       setIsLoading(false);
     }
@@ -54,18 +90,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        setAccessToken(null);
-        setUser(null);
+        // Fallback to currently stored localStorage token if available
+        const currentToken = localStorage.getItem("accessToken");
+        if (currentToken) {
+          return currentToken;
+        }
+        saveAuthData(null, null);
         return null;
       }
 
-      setAccessToken(result.data.accessToken);
-      setUser(result.data.user);
-
+      saveAuthData(result.data.accessToken, result.data.user);
       return result.data.accessToken;
     } catch {
-      setAccessToken(null);
-      setUser(null);
+      const currentToken = localStorage.getItem("accessToken");
+      if (currentToken) {
+        return currentToken;
+      }
+      saveAuthData(null, null);
       return null;
     }
   }, []);
@@ -77,8 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: "include",
       });
     } finally {
-      setAccessToken(null);
-      setUser(null);
+      saveAuthData(null, null);
     }
   }, []);
 

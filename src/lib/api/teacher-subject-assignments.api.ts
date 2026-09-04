@@ -106,3 +106,24 @@ export async function updateTeacherSubjectAssignment(
 
   return result.data;
 }
+
+export async function deleteTeacherSubjectAssignment(
+  id: string,
+  accessToken?: string | null,
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/teacher-subject-assignments/${id}`,
+    {
+      method: "DELETE",
+      headers: getAuthHeaders(accessToken),
+    },
+  );
+
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error(
+      result.message || "Failed to delete teacher subject assignment",
+    );
+  }
+}
