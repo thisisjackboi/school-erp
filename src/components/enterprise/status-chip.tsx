@@ -29,7 +29,17 @@ export function StatusChip({ status }: { status: string }) {
     case "checked in":
     case "half day":
     case "excused":
+    case "ongoing":
       variant = "info";
+      break;
+    case "scheduled":
+      variant = "info";
+      break;
+    case "completed":
+      variant = "success";
+      break;
+    case "cancelled":
+      variant = "destructive";
       break;
     default:
       variant = "secondary";
