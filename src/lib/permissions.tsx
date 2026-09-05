@@ -109,7 +109,21 @@ export interface NavItem {
   href: string;
   iconName: string;
   badge?: string;
+  group?: string;
 }
+
+export interface NavGroupItem {
+  id: string;
+  title: string;
+  iconName: string;
+}
+
+export const NAV_GROUPS: NavGroupItem[] = [
+  { id: "administration", title: "Administration", iconName: "Settings" },
+  { id: "academic-setup", title: "Academic Setup", iconName: "School" },
+  { id: "students-class", title: "Students & Class", iconName: "Users" },
+  { id: "examinations", title: "Examinations", iconName: "GraduationCap" },
+];
 
 export const MODULE_ROUTES: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", iconName: "LayoutDashboard" },
@@ -117,61 +131,115 @@ export const MODULE_ROUTES: NavItem[] = [
     title: "Users",
     href: "/users",
     iconName: "ShieldCheck",
+    group: "administration",
   },
   {
     title: "Permissions",
     href: "/permissions",
     iconName: "ShieldCheck",
+    group: "administration",
   },
   {
     title: "Access Management",
     href: "/access-management",
     iconName: "CalendarDays",
+    group: "administration",
   },
   {
     title: "Designations",
     href: "/designations",
     iconName: "BriefcaseBusiness",
+    group: "administration",
   },
   {
     title: "Roles",
     href: "/roles",
     iconName: "ShieldCheck",
+    group: "administration",
   },
   {
     title: "Employees",
     href: "/employees",
     iconName: "UserRound",
+    group: "administration",
   },
-  { title: "Academic Session", href: "/sessions", iconName: "CalendarDays" },
-  { title: "Classes & Sections", href: "/classes", iconName: "School" },
+  {
+    title: "Academic Session",
+    href: "/sessions",
+    iconName: "CalendarDays",
+    group: "academic-setup",
+  },
+  {
+    title: "Classes & Sections",
+    href: "/classes",
+    iconName: "School",
+    group: "academic-setup",
+  },
   {
     title: "Class–Subject Mapping",
     href: "/class-subjects",
     iconName: "BookOpenCheck",
+    group: "academic-setup",
   },
-  { title: "Section Management", href: "/sections", iconName: "layers" },
+  {
+    title: "Section Management",
+    href: "/sections",
+    iconName: "layers",
+    group: "academic-setup",
+  },
   {
     title: "Teacher Subject Assignment",
     href: "/teacher-subject-assignments",
     iconName: "layers",
+    group: "academic-setup",
   },
   { title: "Admissions", href: "/admissions", iconName: "UserPlus" },
 
-  { title: "Students", href: "/students", iconName: "Users" },
+  {
+    title: "Students",
+    href: "/students",
+    iconName: "Users",
+    group: "students-class",
+  },
 
-  { title: "Subjects", href: "/subjects", iconName: "BookOpen" },
+  {
+    title: "Subjects",
+    href: "/subjects",
+    iconName: "BookOpen",
+    group: "academic-setup",
+  },
 
-  { title: "Attendance", href: "/attendance", iconName: "UserCheck" },
+  {
+    title: "Attendance",
+    href: "/attendance",
+    iconName: "UserCheck",
+    group: "students-class",
+  },
   // { title: "Homework", href: "/homework", iconName: "FileText" },
-  { title: "Timetable", href: "/timetable", iconName: "Clock" },
-  { title: "Examinations", href: "/exams", iconName: "GraduationCap" },
+  {
+    title: "Timetable",
+    href: "/timetable",
+    iconName: "Clock",
+    group: "students-class",
+  },
+  {
+    title: "Examinations",
+    href: "/exams",
+    iconName: "GraduationCap",
+    group: "examinations",
+  },
   {
     title: "Marks & Results",
     href: "/marks-entry",
     iconName: "ClipboardCheck",
+    group: "examinations",
   },
-  { title: "Results", href: "/results", iconName: "BarChart3" },
+  {
+    title: "Results",
+    href: "/results",
+    iconName: "BarChart3",
+    group: "examinations",
+  },
   // { title: "Report Cards", href: "/report-cards", iconName: "Award" },
   // { title: "Fee Management", href: "/fees", iconName: "CreditCard" },
   // { title: "Finance & Accounts", href: "/finance", iconName: "DollarSign" },
