@@ -9,9 +9,9 @@ import {
   GraduationCap,
   IndianRupee,
   LockKeyhole,
-  Mail,
   School,
   ShieldCheck,
+  UserRound,
   Users,
 } from "lucide-react";
 
@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 
 import { useAuth } from "@/lib/auth/auth-context";
-import { LIMITS, REGEX, validateEmail } from "@/lib/input-restrictions";
+import { LIMITS, onlyUsername, validateRequired } from "@/lib/input-restrictions";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -36,16 +36,14 @@ export default function LoginPage() {
     event.preventDefault();
 
     if (!identifier.trim() || !password.trim()) {
-      toast("Login failed", "Please enter your email and password", "error");
+      toast("Login failed", "Please enter your username and password", "error");
       return;
     }
 
-    if (!REGEX.EMAIL.test(identifier.trim())) {
-      const emailError = validateEmail(identifier.trim());
-      if (emailError) {
-        toast("Login failed", emailError, "error");
-        return;
-      }
+    const usernameError = validateRequired(identifier, "Username");
+    if (usernameError) {
+      toast("Login failed", usernameError, "error");
+      return;
     }
 
     if (password.trim().length > LIMITS.TEXT_MAX) {
@@ -206,26 +204,29 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
-                  Email Address
+                <label htmlFor="username" className="text-sm font-medium">
+                  Username
                 </label>
 
                 <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
                   <Input
-                    id="email"
+                    id="username"
                     type="text"
-                    placeholder="name@example.com"
+                    placeholder="Enter your username"
                     value={identifier}
                     onChange={(event) =>
                       setIdentifier(
-                        event.target.value.slice(0, LIMITS.EMAIL_MAX),
+                        onlyUsername(
+                          event.target.value,
+                          LIMITS.USERNAME_MAX,
+                        ),
                       )
                     }
                     className="pl-10"
-                    autoComplete="email"
-                    maxLength={LIMITS.EMAIL_MAX}
+                    autoComplete="username"
+                    maxLength={LIMITS.USERNAME_MAX}
                     autoCorrect="off"
                     autoCapitalize="none"
                     spellCheck={false}
