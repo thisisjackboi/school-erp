@@ -45,12 +45,14 @@ import DesignationsPage from "@/pages/designations/index";
 import RolesPage from "./pages/roles/index";
 import EmployeesPage from "@/pages/employees/index";
 import TeacherSubjectAssignmentsPage from "./pages/teacher-subjectr-assignments";
+import PrivacyPolicyPage from "@/pages/privacy-policy";
 
 export function App() {
   return (
     <Routes>
       {/* Public Login Route */}
       <Route path="/" element={<LoginPage />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
       {/* Authenticated Dashboard App Layout & Module Routes */}
       <Route element={<ProtectedRoute />}>
