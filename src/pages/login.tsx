@@ -20,7 +20,11 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 
 import { useAuth } from "@/lib/auth/auth-context";
-import { LIMITS, onlyUsername, validateRequired } from "@/lib/input-restrictions";
+import {
+  LIMITS,
+  onlyUsername,
+  validateRequired,
+} from "@/lib/input-restrictions";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -218,10 +222,7 @@ export default function LoginPage() {
                     value={identifier}
                     onChange={(event) =>
                       setIdentifier(
-                        onlyUsername(
-                          event.target.value,
-                          LIMITS.USERNAME_MAX,
-                        ),
+                        onlyUsername(event.target.value, LIMITS.USERNAME_MAX),
                       )
                     }
                     className="pl-10"
