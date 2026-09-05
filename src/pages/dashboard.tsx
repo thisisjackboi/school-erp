@@ -64,7 +64,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg bg-slate-900 text-white shadow-sm">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-lg font-bold">Apex School ERP Workspace</h1>
+            <h1 className="text-lg font-bold">PrismaEd+ Workspace</h1>
             <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${roleDetails.badgeColor}`}>
               {roleDetails.name} View
             </span>

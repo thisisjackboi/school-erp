@@ -15,6 +15,8 @@ import {
 
 import type { Designation, DesignationCategory } from "@/lib/types/designation";
 
+import { onlyName } from "@/lib/input-restrictions";
+
 const CATEGORY_OPTIONS: {
   value: DesignationCategory;
   label: string;
@@ -362,7 +364,9 @@ export default function DesignationsPage() {
 
                   <Input
                     value={title}
-                    onChange={(event) => setTitle(event.target.value)}
+                    onChange={(event) =>
+                      setTitle(onlyName(event.target.value, 100))
+                    }
                     placeholder="Example: Senior Teacher"
                     maxLength={100}
                     disabled={isSaving}

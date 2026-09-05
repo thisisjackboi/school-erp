@@ -23,6 +23,16 @@ import type { Admission } from "@/lib/types/admission";
 import type { SchoolClass } from "@/lib/types/class";
 import type { AcademicSession } from "@/lib/types/academic-session";
 
+import {
+  LIMITS,
+  onlyCode,
+  onlyDigits,
+  onlyName,
+  validateMaxLength,
+  validateName,
+  validatePhone,
+} from "@/lib/input-restrictions";
+
 interface AdmissionFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -156,9 +166,27 @@ export function AdmissionFormDialog({
   }, [open, accessToken, admission]);
 
   const updateField = (field: keyof typeof formData, value: string) => {
+    let next = value;
+
+    switch (field) {
+      case "applicationNumber":
+        next = onlyCode(value, 20);
+        break;
+      case "firstName":
+      case "lastName":
+      case "guardianName":
+        next = onlyName(value, LIMITS.NAME_MAX);
+        break;
+      case "guardianPhone":
+        next = onlyDigits(value, LIMITS.PHONE_MAX);
+        break;
+      default:
+        next = value.slice(0, LIMITS.TEXT_MAX);
+    }
+
     setFormData((current) => ({
       ...current,
-      [field]: value,
+      [field]: next,
     }));
   };
 
@@ -171,13 +199,38 @@ export function AdmissionFormDialog({
         return false;
       }
 
+      const appNoError = validateMaxLength(
+        formData.applicationNumber,
+        "Application number",
+        20,
+      );
+      if (appNoError) {
+        setError(appNoError);
+        return false;
+      }
+
       if (!formData.firstName.trim()) {
         setError("First name is required.");
         return false;
       }
 
+      const firstNameError = validateName(
+        formData.firstName,
+        "First name",
+      );
+      if (firstNameError) {
+        setError(firstNameError);
+        return false;
+      }
+
       if (!formData.lastName.trim()) {
         setError("Last name is required.");
+        return false;
+      }
+
+      const lastNameError = validateName(formData.lastName, "Last name");
+      if (lastNameError) {
+        setError(lastNameError);
         return false;
       }
 
@@ -203,8 +256,23 @@ export function AdmissionFormDialog({
         return false;
       }
 
+      const guardianNameError = validateName(
+        formData.guardianName,
+        "Guardian name",
+      );
+      if (guardianNameError) {
+        setError(guardianNameError);
+        return false;
+      }
+
       if (!formData.guardianPhone.trim()) {
         setError("Guardian phone is required.");
+        return false;
+      }
+
+      const phoneError = validatePhone(formData.guardianPhone);
+      if (phoneError) {
+        setError(phoneError);
         return false;
       }
     }
@@ -354,6 +422,7 @@ export function AdmissionFormDialog({
                   placeholder="e.g. ADM-2026-001"
                   value={formData.applicationNumber}
                   disabled={isEditMode}
+                  maxLength={20}
                   onChange={(event) =>
                     updateField("applicationNumber", event.target.value)
                   }
@@ -366,6 +435,7 @@ export function AdmissionFormDialog({
                 <Input
                   placeholder="First name"
                   value={formData.firstName}
+                  maxLength={LIMITS.NAME_MAX}
                   onChange={(event) =>
                     updateField("firstName", event.target.value)
                   }
@@ -378,6 +448,7 @@ export function AdmissionFormDialog({
                 <Input
                   placeholder="Last name"
                   value={formData.lastName}
+                  maxLength={LIMITS.NAME_MAX}
                   onChange={(event) =>
                     updateField("lastName", event.target.value)
                   }
@@ -477,6 +548,7 @@ export function AdmissionFormDialog({
                 <Input
                   placeholder="Parent / Guardian full name"
                   value={formData.guardianName}
+                  maxLength={LIMITS.NAME_MAX}
                   onChange={(event) =>
                     updateField("guardianName", event.target.value)
                   }
@@ -491,6 +563,9 @@ export function AdmissionFormDialog({
                 <Input
                   placeholder="9876543210"
                   value={formData.guardianPhone}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={LIMITS.PHONE_MAX}
                   onChange={(event) =>
                     updateField("guardianPhone", event.target.value)
                   }

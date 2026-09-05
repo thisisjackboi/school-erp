@@ -18,6 +18,18 @@ import { getRoles } from "@/lib/api/roles.api";
 
 import type { RbacUser, Role } from "@/lib/types/rbac";
 
+import {
+  LIMITS,
+  firstError,
+  onlyDigits,
+  onlyUsername,
+  trimMax,
+  validateEmail,
+  validateMaxLength,
+  validatePhone,
+  validateRequired,
+} from "@/lib/input-restrictions";
+
 export default function UsersPage() {
   const { accessToken } = useAuth();
 
@@ -140,6 +152,27 @@ export default function UsersPage() {
 
     if (selectedRoleIds.length === 0) {
       setError("Select at least one role");
+      return;
+    }
+
+    const userError = firstError(
+      validateRequired(form.username, "Username"),
+      validateMaxLength(form.username, "Username", LIMITS.USERNAME_MAX),
+      validateRequired(form.password, "Password"),
+      validateMaxLength(form.password, "Password", LIMITS.TEXT_MAX),
+    );
+    if (userError) {
+      setError(userError);
+      return;
+    }
+
+    if (form.email.trim() && !validateEmail(form.email)) {
+      setError(validateEmail(form.email));
+      return;
+    }
+
+    if (form.phone.trim() && !validatePhone(form.phone)) {
+      setError(validatePhone(form.phone));
       return;
     }
 
@@ -372,10 +405,14 @@ export default function UsersPage() {
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        username: event.target.value,
+                        username: onlyUsername(
+                          event.target.value,
+                          LIMITS.USERNAME_MAX,
+                        ),
                       }))
                     }
                     placeholder="Enter username"
+                    maxLength={LIMITS.USERNAME_MAX}
                     disabled={creating}
                     className="text-xs"
                   />
@@ -392,10 +429,14 @@ export default function UsersPage() {
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        email: event.target.value,
+                        email: trimMax(
+                          event.target.value,
+                          LIMITS.EMAIL_MAX,
+                        ),
                       }))
                     }
                     placeholder="Enter email"
+                    maxLength={LIMITS.EMAIL_MAX}
                     disabled={creating}
                     className="text-xs"
                   />
@@ -407,14 +448,20 @@ export default function UsersPage() {
                   </label>
 
                   <Input
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={form.phone}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        phone: event.target.value,
+                        phone: onlyDigits(
+                          event.target.value,
+                          LIMITS.PHONE_MAX,
+                        ),
                       }))
                     }
                     placeholder="Enter phone"
+                    maxLength={LIMITS.PHONE_MAX}
                     disabled={creating}
                     className="text-xs"
                   />
@@ -431,10 +478,14 @@ export default function UsersPage() {
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        password: event.target.value,
+                        password: trimMax(
+                          event.target.value,
+                          LIMITS.TEXT_MAX,
+                        ),
                       }))
                     }
                     placeholder="Enter password"
+                    maxLength={LIMITS.TEXT_MAX}
                     disabled={creating}
                     className="text-xs"
                   />

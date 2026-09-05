@@ -10,6 +10,18 @@ import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } fr
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 
+import {
+  LIMITS,
+  firstError,
+  onlyDigits,
+  onlyName,
+  trimMax,
+  validateMaxLength,
+  validateName,
+  validatePhone,
+  validateRequired,
+} from "@/lib/input-restrictions";
+
 export default function VisitorsPage() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -20,7 +32,18 @@ export default function VisitorsPage() {
   const [personToMeet, setPersonToMeet] = useState("");
 
   const handleIssuePass = () => {
-    if (!visitorName) return;
+    const error = firstError(
+      validateRequired(visitorName, "Visitor name"),
+      validateName(visitorName, "Visitor name"),
+      validateMaxLength(visitorName, "Visitor name", LIMITS.NAME_MAX),
+      ...(phone.trim() ? [validatePhone(phone)] : []),
+      validateMaxLength(purpose, "Purpose", LIMITS.TEXT_MAX),
+      validateMaxLength(personToMeet, "Person to meet", LIMITS.NAME_MAX),
+    );
+    if (error) {
+      toast("Cannot issue pass", error, "error");
+      return;
+    }
     const newPass = {
       id: `VIS-${Math.floor(100 + Math.random() * 900)}`,
       passNo: `VP-2026-${Math.floor(100 + Math.random() * 900)}`,
@@ -72,21 +95,21 @@ export default function VisitorsPage() {
         <div className="space-y-3 text-xs">
           <div>
             <label className="font-semibold block mb-1">Visitor Full Name *</label>
-            <Input placeholder="e.g. Ramesh Kumar" value={visitorName} onChange={(e) => setVisitorName(e.target.value)} />
+            <Input placeholder="e.g. Ramesh Kumar" maxLength={LIMITS.NAME_MAX} value={visitorName} onChange={(e) => setVisitorName(onlyName(e.target.value, LIMITS.NAME_MAX))} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="font-semibold block mb-1">Phone Number</label>
-              <Input placeholder="+91 98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Input inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 9876543210" maxLength={LIMITS.PHONE_MAX} value={phone} onChange={(e) => setPhone(onlyDigits(e.target.value, LIMITS.PHONE_MAX))} />
             </div>
             <div>
               <label className="font-semibold block mb-1">Person / Dept to Meet</label>
-              <Input placeholder="e.g. Principal / Accountant" value={personToMeet} onChange={(e) => setPersonToMeet(e.target.value)} />
+              <Input placeholder="e.g. Principal / Accountant" maxLength={LIMITS.NAME_MAX} value={personToMeet} onChange={(e) => setPersonToMeet(onlyName(e.target.value, LIMITS.NAME_MAX))} />
             </div>
           </div>
           <div>
             <label className="font-semibold block mb-1">Purpose of Visit</label>
-            <Input placeholder="Admission inquiry, document submission..." value={purpose} onChange={(e) => setPurpose(e.target.value)} />
+            <Input placeholder="Admission inquiry, document submission..." maxLength={LIMITS.TEXT_MAX} value={purpose} onChange={(e) => setPurpose(trimMax(e.target.value, LIMITS.TEXT_MAX))} />
           </div>
         </div>
         <DialogFooter>

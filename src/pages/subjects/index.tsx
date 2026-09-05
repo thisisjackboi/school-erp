@@ -25,6 +25,8 @@ import {
 
 import type { Subject } from "@/lib/types/subject";
 
+import { onlyCode, trimMax } from "@/lib/input-restrictions";
+
 export default function SubjectsPage() {
   const { accessToken } = useAuth();
 
@@ -345,7 +347,7 @@ export default function SubjectsPage() {
                   <Input
                     value={name}
                     onChange={(event) =>
-                      setName(event.target.value)
+                      setName(trimMax(event.target.value, 100))
                     }
                     placeholder="Example: Mathematics"
                     maxLength={100}
@@ -362,7 +364,7 @@ export default function SubjectsPage() {
                   <Input
                     value={code}
                     onChange={(event) =>
-                      setCode(event.target.value)
+                      setCode(onlyCode(event.target.value, 20))
                     }
                     placeholder="Example: MATH"
                     maxLength={20}

@@ -28,6 +28,15 @@ import {
 
 import type { SchoolClass } from "@/lib/types/class";
 
+import {
+  LIMITS,
+  firstError,
+  onlyDigits,
+  validateMaxLength,
+  validateNumeric,
+  validateRequired,
+} from "@/lib/input-restrictions";
+
 export default function ClassesPage() {
   const { accessToken } = useAuth();
 
@@ -123,16 +132,27 @@ export default function ClassesPage() {
   ) => {
     event.preventDefault();
 
-    if (!accessToken || !name.trim()) {
+    if (!accessToken) {
+      return;
+    }
+
+    const nameError = firstError(
+      validateRequired(name, "Class name"),
+      validateMaxLength(name, "Class name", LIMITS.NAME_MAX),
+    );
+    if (nameError) {
+      setError(nameError);
       return;
     }
 
     const order = Number(displayOrder);
 
-    if (
-      !displayOrder ||
-      Number.isNaN(order)
-    ) {
+    const orderError = validateNumeric(displayOrder, "Display order", {
+      min: 1,
+      max: 1000,
+    });
+    if (orderError) {
+      setError(orderError);
       return;
     }
 
@@ -354,10 +374,11 @@ export default function ClassesPage() {
                     value={name}
                     onChange={(event) =>
                       setName(
-                        event.target.value,
+                        event.target.value.slice(0, LIMITS.NAME_MAX),
                       )
                     }
                     placeholder="Example: Class 10"
+                    maxLength={LIMITS.NAME_MAX}
                     disabled={isSaving}
                   />
                 </div>
@@ -368,15 +389,17 @@ export default function ClassesPage() {
                   </label>
 
                   <Input
-                    type="number"
-                    min="1"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={displayOrder}
                     onChange={(event) =>
                       setDisplayOrder(
-                        event.target.value,
+                        onlyDigits(event.target.value, 4),
                       )
                     }
                     placeholder="Example: 10"
+                    maxLength={4}
                     disabled={isSaving}
                   />
                 </div>

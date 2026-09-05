@@ -31,6 +31,13 @@ import { getPermissions } from "@/lib/api/permissions.api";
 
 import type { Permission, Role } from "@/lib/types/rbac";
 
+import {
+  LIMITS,
+  firstError,
+  trimMax,
+  validateMaxLength,
+} from "@/lib/input-restrictions";
+
 export default function RolesPage() {
   const { accessToken } = useAuth();
 
@@ -175,6 +182,15 @@ export default function RolesPage() {
 
     if (!name) {
       setError("Role name is required.");
+      return;
+    }
+
+    const nameError = firstError(
+      validateMaxLength(name, "Role name", LIMITS.NAME_MAX),
+      validateMaxLength(description, "Role description", LIMITS.REMARKS_MAX),
+    );
+    if (nameError) {
+      setError(nameError);
       return;
     }
 
@@ -705,8 +721,11 @@ export default function RolesPage() {
 
                   <Input
                     value={roleName}
-                    onChange={(event) => setRoleName(event.target.value)}
+                    onChange={(event) =>
+                      setRoleName(trimMax(event.target.value, LIMITS.NAME_MAX))
+                    }
                     placeholder="Example: Teacher"
+                    maxLength={LIMITS.NAME_MAX}
                     disabled={isSavingRole}
                   />
                 </div>
@@ -716,10 +735,15 @@ export default function RolesPage() {
 
                   <textarea
                     value={roleDescription}
-                    onChange={(event) => setRoleDescription(event.target.value)}
+                    onChange={(event) =>
+                      setRoleDescription(
+                        trimMax(event.target.value, LIMITS.REMARKS_MAX),
+                      )
+                    }
                     placeholder="Describe what this role is used for..."
                     disabled={isSavingRole}
                     rows={4}
+                    maxLength={LIMITS.REMARKS_MAX}
                     className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>

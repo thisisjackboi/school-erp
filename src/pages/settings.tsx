@@ -8,14 +8,36 @@ import { useToast } from "@/components/ui/toast";
 import { ROLES, MODULE_ROUTES } from "@/lib/permissions";
 import { Settings, Save, ShieldCheck, School } from "lucide-react";
 
+import {
+  LIMITS,
+  firstError,
+  onlyCode,
+  trimMax,
+  validateMaxLength,
+  validateRequired,
+} from "@/lib/input-restrictions";
+
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [schoolName, setSchoolName] = useState("Apex International Senior Secondary School");
+  const [schoolName, setSchoolName] = useState("PrismaEd+ Senior Secondary School");
   const [schoolCode, setSchoolCode] = useState("CBSE-54109");
   const [phone, setPhone] = useState("+91 11 2612 3456");
   const [address, setAddress] = useState("Sector 4, Vasant Vihar, New Delhi - 110057");
 
   const handleSave = () => {
+    const error = firstError(
+      validateRequired(schoolName, "Institution name"),
+      validateMaxLength(schoolName, "Institution name", LIMITS.TITLE_MAX),
+      validateRequired(schoolCode, "Affiliation code"),
+      validateMaxLength(schoolCode, "Affiliation code", LIMITS.CODE_MAX),
+      validateMaxLength(phone, "Official phone", LIMITS.PHONE_INTL_MAX),
+      validateRequired(address, "Campus address"),
+      validateMaxLength(address, "Campus address", LIMITS.ADDRESS_MAX),
+    );
+    if (error) {
+      toast("Cannot save settings", error, "error");
+      return;
+    }
     toast("School Settings Updated!", "School profile & configuration saved successfully.", "success");
   };
 
@@ -42,21 +64,21 @@ export default function SettingsPage() {
           <CardContent className="space-y-3 text-xs">
             <div>
               <label className="font-semibold block mb-1">Institution Name</label>
-              <Input value={schoolName} onChange={(e) => setSchoolName(e.target.value)} />
+              <Input maxLength={LIMITS.TITLE_MAX} value={schoolName} onChange={(e) => setSchoolName(trimMax(e.target.value, LIMITS.TITLE_MAX))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="font-semibold block mb-1">Affiliation Code</label>
-                <Input value={schoolCode} onChange={(e) => setSchoolCode(e.target.value)} />
+                <Input maxLength={LIMITS.CODE_MAX} value={schoolCode} onChange={(e) => setSchoolCode(onlyCode(e.target.value, LIMITS.CODE_MAX))} />
               </div>
               <div>
                 <label className="font-semibold block mb-1">Official Phone</label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <Input maxLength={LIMITS.PHONE_INTL_MAX} value={phone} onChange={(e) => setPhone(trimMax(e.target.value, LIMITS.PHONE_INTL_MAX))} />
               </div>
             </div>
             <div>
               <label className="font-semibold block mb-1">Campus Address</label>
-              <Input value={address} onChange={(e) => setAddress(e.target.value)} />
+              <Input maxLength={LIMITS.ADDRESS_MAX} value={address} onChange={(e) => setAddress(trimMax(e.target.value, LIMITS.ADDRESS_MAX))} />
             </div>
           </CardContent>
         </Card>

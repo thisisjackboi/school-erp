@@ -36,6 +36,13 @@ import { Input } from "@/components/ui/input";
 
 import { Eye, Pencil, Plus, ShieldCheck, Trash2, UserCheck, X } from "lucide-react";
 
+import {
+  LIMITS,
+  onlyUsername,
+  trimMax,
+  validateMaxLength,
+} from "@/lib/input-restrictions";
+
 const ADMISSION_STATUSES = [
   "APPLIED",
   "SHORTLISTED",
@@ -138,6 +145,15 @@ export default function AdmissionsPage() {
     }
     if (!convertForm.username.trim()) {
       toast("Username required", "Please enter a student login username.", "error");
+      return;
+    }
+    const usernameError = validateMaxLength(
+      convertForm.username,
+      "Username",
+      LIMITS.USERNAME_MAX,
+    );
+    if (usernameError) {
+      toast("Invalid username", usernameError, "error");
       return;
     }
     if (!convertForm.password || convertForm.password.length < 8) {
@@ -730,8 +746,12 @@ export default function AdmissionsPage() {
               placeholder="e.g. aaravsharma"
               value={convertForm.username}
               onChange={(e) =>
-                setConvertForm((prev) => ({ ...prev, username: e.target.value }))
+                setConvertForm((prev) => ({
+                  ...prev,
+                  username: onlyUsername(e.target.value, LIMITS.USERNAME_MAX),
+                }))
               }
+              maxLength={LIMITS.USERNAME_MAX}
               disabled={converting}
             />
             <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -748,8 +768,12 @@ export default function AdmissionsPage() {
               placeholder="Minimum 8 characters"
               value={convertForm.password}
               onChange={(e) =>
-                setConvertForm((prev) => ({ ...prev, password: e.target.value }))
+                setConvertForm((prev) => ({
+                  ...prev,
+                  password: trimMax(e.target.value, LIMITS.TEXT_MAX),
+                }))
               }
+              maxLength={LIMITS.TEXT_MAX}
               disabled={converting}
             />
             <p className="text-[10px] text-muted-foreground mt-0.5">

@@ -47,7 +47,7 @@ export function PrintableReportCard({
           <div className="flex items-center justify-center space-x-2">
             <GraduationCap className="h-8 w-8 text-blue-600" />
             <h1 className="text-xl font-bold uppercase tracking-wide text-blue-900 dark:text-blue-200">
-              Apex International Senior Secondary School
+              PrismaEd+ Senior Secondary School
             </h1>
           </div>
           <p className="text-xs text-slate-600 dark:text-slate-400">

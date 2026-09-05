@@ -1,12 +1,26 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, LockKeyhole, Mail, School } from "lucide-react";
+import {
+  BookOpen,
+  CalendarDays,
+  ClipboardCheck,
+  Eye,
+  EyeOff,
+  GraduationCap,
+  IndianRupee,
+  LockKeyhole,
+  Mail,
+  School,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 
 import { useAuth } from "@/lib/auth/auth-context";
+import { LIMITS, REGEX, validateEmail } from "@/lib/input-restrictions";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -23,6 +37,23 @@ export default function LoginPage() {
 
     if (!identifier.trim() || !password.trim()) {
       toast("Login failed", "Please enter your email and password", "error");
+      return;
+    }
+
+    if (!REGEX.EMAIL.test(identifier.trim())) {
+      const emailError = validateEmail(identifier.trim());
+      if (emailError) {
+        toast("Login failed", emailError, "error");
+        return;
+      }
+    }
+
+    if (password.trim().length > LIMITS.TEXT_MAX) {
+      toast(
+        "Login failed",
+        `Password cannot exceed ${LIMITS.TEXT_MAX} characters`,
+        "error",
+      );
       return;
     }
 
@@ -61,7 +92,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <h1 className="text-lg font-bold">Apex School ERP</h1>
+              <h1 className="text-lg font-bold">PrismaEd+</h1>
               <p className="text-sm text-primary-foreground/70">
                 School Management System
               </p>
@@ -78,10 +109,74 @@ export default function LoginPage() {
               fees, and other school operations through one centralized
               platform.
             </p>
+
+            <div className="mt-8">
+              <p className="text-xs font-bold uppercase tracking-wider text-primary-foreground/70">
+                Features
+              </p>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {[
+                  {
+                    icon: GraduationCap,
+                    title: "Students & Admissions",
+                    description:
+                      "Enrollment, student records & admissions lifecycle.",
+                  },
+                  {
+                    icon: BookOpen,
+                    title: "Academics & Timetable",
+                    description:
+                      "Sessions, classes, sections, subjects & period scheduling.",
+                  },
+                  {
+                    icon: ClipboardCheck,
+                    title: "Exams, Marks & Results",
+                    description:
+                      "Exam types, schedules, mark entry & auto PASS/FAIL results.",
+                  },
+                  {
+                    icon: CalendarDays,
+                    title: "Attendance",
+                    description:
+                      "Period-wise attendance tracking by class & section.",
+                  },
+                  {
+                    icon: Users,
+                    title: "Employees & HR",
+                    description:
+                      "Staff directory, designations & workload assignments.",
+                  },
+
+                  {
+                    icon: School,
+                    title: "Certificates & More",
+                    description:
+                      "Report cards, certificates, events & announcements.",
+                  },
+                ].map(({ icon: Icon, title, description }) => (
+                  <div
+                    key={title}
+                    className="flex items-start gap-3 rounded-lg border border-primary-foreground/15 bg-white/5 p-3"
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/10">
+                      <Icon className="h-4 w-4" />
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-bold">{title}</p>
+                      <p className="mt-0.5 text-[10px] leading-4 text-primary-foreground/70">
+                        {description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <p className="text-xs text-primary-foreground/60">
-            © {new Date().getFullYear()} Apex School ERP
+            © {new Date().getFullYear()} PrismaEd+
           </p>
         </section>
 
@@ -95,7 +190,7 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <h1 className="font-bold">Apex School ERP</h1>
+                  <h1 className="font-bold">PrismaEd+</h1>
                   <p className="text-xs text-muted-foreground">
                     School Management System
                   </p>
@@ -123,9 +218,17 @@ export default function LoginPage() {
                     type="text"
                     placeholder="name@example.com"
                     value={identifier}
-                    onChange={(event) => setIdentifier(event.target.value)}
+                    onChange={(event) =>
+                      setIdentifier(
+                        event.target.value.slice(0, LIMITS.EMAIL_MAX),
+                      )
+                    }
                     className="pl-10"
                     autoComplete="email"
+                    maxLength={LIMITS.EMAIL_MAX}
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
                   />
                 </div>
               </div>
@@ -143,9 +246,12 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    onChange={(event) =>
+                      setPassword(event.target.value.slice(0, LIMITS.TEXT_MAX))
+                    }
                     className="pl-10 pr-10"
                     autoComplete="current-password"
+                    maxLength={LIMITS.TEXT_MAX}
                   />
 
                   <button

@@ -9,6 +9,8 @@ import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } fr
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 
+import { LIMITS, firstError, trimMax, validateMaxLength, validateRequired } from "@/lib/input-restrictions";
+
 export default function AnnouncementsPage() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -17,7 +19,15 @@ export default function AnnouncementsPage() {
   const [content, setContent] = useState("");
 
   const handlePost = () => {
-    if (!title) return;
+    const error = firstError(
+      validateRequired(title, "Notice title"),
+      validateMaxLength(title, "Notice title", LIMITS.TITLE_MAX),
+      validateMaxLength(content, "Notice content", LIMITS.REMARKS_MAX),
+    );
+    if (error) {
+      toast("Cannot publish", error, "error");
+      return;
+    }
     const newAnn = {
       id: `ANN-${Math.floor(100 + Math.random() * 900)}`,
       title,
@@ -76,11 +86,11 @@ export default function AnnouncementsPage() {
         <div className="space-y-3 text-xs">
           <div>
             <label className="font-semibold block mb-1">Notice Title *</label>
-            <Input placeholder="e.g. Sports Day Registration Open" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Input placeholder="e.g. Sports Day Registration Open" maxLength={LIMITS.TITLE_MAX} value={title} onChange={(e) => setTitle(trimMax(e.target.value, LIMITS.TITLE_MAX))} />
           </div>
           <div>
             <label className="font-semibold block mb-1">Notice Content</label>
-            <Input placeholder="Type detailed announcement message..." value={content} onChange={(e) => setContent(e.target.value)} />
+            <Input placeholder="Type detailed announcement message..." maxLength={LIMITS.REMARKS_MAX} value={content} onChange={(e) => setContent(trimMax(e.target.value, LIMITS.REMARKS_MAX))} />
           </div>
         </div>
         <DialogFooter>

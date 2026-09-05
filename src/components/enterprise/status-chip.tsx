@@ -11,6 +11,8 @@ export function StatusChip({ status }: { status: string }) {
     case "approved":
     case "issued":
     case "checked out":
+    case "completed":
+    case "pass":
       variant = "success";
       break;
     case "pending":
@@ -24,22 +26,16 @@ export function StatusChip({ status }: { status: string }) {
     case "rejected":
     case "suspended":
     case "resigned":
+    case "cancelled":
+    case "fail":
       variant = "destructive";
       break;
     case "checked in":
     case "half day":
     case "excused":
     case "ongoing":
-      variant = "info";
-      break;
     case "scheduled":
       variant = "info";
-      break;
-    case "completed":
-      variant = "success";
-      break;
-    case "cancelled":
-      variant = "destructive";
       break;
     default:
       variant = "secondary";

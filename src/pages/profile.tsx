@@ -44,17 +44,17 @@ export default function ProfilePage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="font-semibold block mb-1">Full Name</label>
-                <Input defaultValue={`${roleDetails.name} User`} />
+                <Input defaultValue={`${roleDetails.name} User`} maxLength={50} placeholder="Enter full name" />
               </div>
               <div>
                 <label className="font-semibold block mb-1">Email Address</label>
-                <Input defaultValue={`user@${roleDetails.id}.school.edu`} />
+                <Input type="email" defaultValue={`user@${roleDetails.id}.school.edu`} maxLength={120} placeholder="Enter email" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="font-semibold block mb-1">Phone Number</label>
-                <Input defaultValue="+91 98765 43210" />
+                <Input inputMode="tel" defaultValue="+91 98765 43210" maxLength={15} placeholder="Enter phone" />
               </div>
               <div>
                 <label className="font-semibold block mb-1">Assigned Role Context</label>

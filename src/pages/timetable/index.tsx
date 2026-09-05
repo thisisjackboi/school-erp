@@ -36,6 +36,17 @@ import type { TeacherSubjectAssignment } from "@/lib/types/teacher-subject-assig
 import type { Period, TimetableSlot } from "@/lib/types/timetable";
 import type { Employee } from "@/lib/types/employee";
 import type { Subject } from "@/lib/types/subject";
+
+import {
+  LIMITS,
+  firstError,
+  onlyDigits,
+  trimMax,
+  validateMaxLength,
+  validateNumeric,
+  validateRequired,
+} from "@/lib/input-restrictions";
+
 import {
   Clock,
   Printer,
@@ -103,7 +114,7 @@ export default function TimetablePage() {
     name: "",
     startTime: "08:30",
     endTime: "09:15",
-    sortOrder: 1,
+    sortOrder: "1",
   });
   const [submittingPeriod, setSubmittingPeriod] = useState<boolean>(false);
 
@@ -343,7 +354,7 @@ export default function TimetablePage() {
         name: period.name,
         startTime: parseTime(period.startTime),
         endTime: parseTime(period.endTime),
-        sortOrder: period.sortOrder,
+        sortOrder: String(period.sortOrder),
       });
     } else {
       setEditingPeriod(null);
@@ -351,7 +362,7 @@ export default function TimetablePage() {
         name: `Period ${periods.length + 1}`,
         startTime: "08:30",
         endTime: "09:15",
-        sortOrder: periods.length + 1,
+        sortOrder: String(periods.length + 1),
       });
     }
     setIsPeriodDialogOpen(true);
@@ -363,6 +374,30 @@ export default function TimetablePage() {
 
     if (!periodForm.name.trim()) {
       toast("Period name required", "Please enter a period name.", "error");
+      return;
+    }
+
+    const sortOrderNumber = parseInt(periodForm.sortOrder, 10);
+
+    const periodError = firstError(
+      validateRequired(periodForm.name, "Period name"),
+      validateMaxLength(periodForm.name, "Period name", LIMITS.NAME_MAX),
+      validateNumeric(periodForm.sortOrder, "Sort order", {
+        min: 1,
+        max: 1000,
+      }),
+    );
+    if (periodError) {
+      toast(periodError, "Please correct the highlighted fields.", "error");
+      return;
+    }
+
+    if (periodForm.startTime >= periodForm.endTime) {
+      toast(
+        "Invalid period timings",
+        "End time must be after start time.",
+        "error",
+      );
       return;
     }
 
@@ -379,7 +414,7 @@ export default function TimetablePage() {
             name: periodForm.name,
             startTime: startIso,
             endTime: endIso,
-            sortOrder: Number(periodForm.sortOrder),
+            sortOrder: sortOrderNumber,
           },
           accessToken,
         );
@@ -390,7 +425,7 @@ export default function TimetablePage() {
             name: periodForm.name,
             startTime: startIso,
             endTime: endIso,
-            sortOrder: Number(periodForm.sortOrder),
+            sortOrder: sortOrderNumber,
           },
           accessToken,
         );
@@ -978,7 +1013,13 @@ export default function TimetablePage() {
               <Input
                 placeholder="e.g. Period 1 or Lunch Break"
                 value={periodForm.name}
-                onChange={(e) => setPeriodForm({ ...periodForm, name: e.target.value })}
+                onChange={(e) =>
+                  setPeriodForm({
+                    ...periodForm,
+                    name: trimMax(e.target.value, LIMITS.NAME_MAX),
+                  })
+                }
+                maxLength={LIMITS.NAME_MAX}
                 disabled={submittingPeriod}
               />
             </div>
@@ -986,13 +1027,17 @@ export default function TimetablePage() {
             <div>
               <label className="font-semibold block mb-1">Sort Order *</label>
               <Input
-                type="number"
-                min={1}
-                max={100}
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={periodForm.sortOrder}
                 onChange={(e) =>
-                  setPeriodForm({ ...periodForm, sortOrder: parseInt(e.target.value) || 1 })
+                  setPeriodForm({
+                    ...periodForm,
+                    sortOrder: onlyDigits(e.target.value, 4),
+                  })
                 }
+                maxLength={4}
+                placeholder="1-1000"
                 disabled={submittingPeriod}
               />
             </div>
@@ -1184,7 +1229,10 @@ export default function TimetablePage() {
             <Input
               placeholder="e.g. Room 102 or Physics Lab"
               value={slotForm.room}
-              onChange={(e) => setSlotForm({ ...slotForm, room: e.target.value })}
+              onChange={(e) =>
+                setSlotForm({ ...slotForm, room: trimMax(e.target.value, LIMITS.TEXT_MAX) })
+              }
+              maxLength={LIMITS.TEXT_MAX}
               disabled={submittingSlot}
             />
           </div>

@@ -74,7 +74,7 @@ export default function CertificatesPage() {
         <div id="printable-area" className="p-8 bg-white text-slate-900 border-4 border-double border-blue-900 rounded-lg space-y-6 text-center font-serif">
           <div className="space-y-1">
             <GraduationCap className="h-10 w-10 text-blue-900 mx-auto" />
-            <h1 className="text-2xl font-bold uppercase tracking-widest text-blue-900">Apex International School</h1>
+            <h1 className="text-2xl font-bold uppercase tracking-widest text-blue-900">PrismaEd+ School</h1>
             <p className="text-xs font-sans text-slate-600">Affiliated to CBSE Delhi • School Code: 54109</p>
             <h2 className="text-lg font-bold underline uppercase tracking-wider text-slate-800 pt-4">{certType}</h2>
           </div>

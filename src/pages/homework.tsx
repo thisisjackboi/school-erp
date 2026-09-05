@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { FileText, Plus, CheckCircle2, Download } from "lucide-react";
 
+import { LIMITS, firstError, trimMax, validateMaxLength, validateRequired } from "@/lib/input-restrictions";
+
 export default function HomeworkPage() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -19,7 +21,15 @@ export default function HomeworkPage() {
   const [newDueDate, setNewDueDate] = useState("2026-08-14");
 
   const handleCreate = () => {
-    if (!newTitle) return;
+    const error = firstError(
+      validateRequired(newTitle, "Homework title"),
+      validateMaxLength(newTitle, "Homework title", LIMITS.TITLE_MAX),
+      validateMaxLength(newDesc, "Description", LIMITS.REMARKS_MAX),
+    );
+    if (error) {
+      toast("Cannot post", error, "error");
+      return;
+    }
     const newItem = {
       id: `HW-${Math.floor(100 + Math.random() * 900)}`,
       title: newTitle,
@@ -90,7 +100,7 @@ export default function HomeworkPage() {
         <div className="space-y-3 text-xs">
           <div>
             <label className="font-semibold block mb-1">Homework Title *</label>
-            <Input placeholder="e.g. Chapter 4 Numerical Problems" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+            <Input placeholder="e.g. Chapter 4 Numerical Problems" maxLength={LIMITS.TITLE_MAX} value={newTitle} onChange={(e) => setNewTitle(trimMax(e.target.value, LIMITS.TITLE_MAX))} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -109,7 +119,7 @@ export default function HomeworkPage() {
           </div>
           <div>
             <label className="font-semibold block mb-1">Instructions / Description</label>
-            <Input placeholder="Detailed steps or problem numbers..." value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
+            <Input placeholder="Detailed steps or problem numbers..." maxLength={LIMITS.REMARKS_MAX} value={newDesc} onChange={(e) => setNewDesc(trimMax(e.target.value, LIMITS.REMARKS_MAX))} />
           </div>
         </div>
         <DialogFooter>

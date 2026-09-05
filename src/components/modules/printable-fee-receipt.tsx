@@ -42,7 +42,7 @@ export function PrintableFeeReceipt({
       <div id="printable-area" className="p-6 bg-white dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-slate-100 font-sans space-y-5">
         <div className="flex items-center justify-between border-b pb-4">
           <div>
-            <h2 className="text-base font-bold text-blue-900 dark:text-blue-300">Apex International School</h2>
+            <h2 className="text-base font-bold text-blue-900 dark:text-blue-300">PrismaEd+ School</h2>
             <p className="text-xs text-slate-500">Official Fee Receipt • Academic Year 2026-27</p>
           </div>
           <div className="text-right">
@@ -93,7 +93,7 @@ export function PrintableFeeReceipt({
           </div>
           <div className="text-right">
             <p className="font-semibold text-slate-800 dark:text-slate-200">Accounts Department</p>
-            <p className="text-[10px]">Apex International School</p>
+            <p className="text-[10px]">PrismaEd+ School</p>
           </div>
         </div>
       </div>

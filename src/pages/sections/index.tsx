@@ -20,6 +20,15 @@ import type { Section } from "@/lib/types/section";
 import type { SchoolClass } from "@/lib/types/class";
 import type { AcademicSession } from "@/lib/types/academic-session";
 
+import {
+  firstError,
+  onlyCode,
+  onlyDigits,
+  validateMaxLength,
+  validateNumeric,
+  validateRequired,
+} from "@/lib/input-restrictions";
+
 export default function SectionsPage() {
   const { accessToken } = useAuth();
 
@@ -163,17 +172,27 @@ export default function SectionsPage() {
       return;
     }
 
+    const nameError = validateMaxLength(name, "Section name", 10);
+    if (nameError) {
+      setError(nameError);
+      return;
+    }
+
     let capacityValue: number | undefined;
 
     if (capacity.trim()) {
       const parsedCapacity = Number(capacity);
 
-      if (
-        !Number.isInteger(parsedCapacity) ||
-        parsedCapacity < 1 ||
-        parsedCapacity > 32767
-      ) {
-        setError("Capacity must be an integer between 1 and 32767.");
+      const capacityError = firstError(
+        validateNumeric(capacity, "Capacity", { min: 1, max: 32767 }),
+      );
+      if (capacityError) {
+        setError(capacityError);
+        return;
+      }
+
+      if (!Number.isInteger(parsedCapacity)) {
+        setError("Capacity must be a whole number.");
         return;
       }
 
@@ -441,7 +460,9 @@ export default function SectionsPage() {
 
                   <Input
                     value={name}
-                    onChange={(event) => setName(event.target.value)}
+                    onChange={(event) =>
+                      setName(onlyCode(event.target.value, 10))
+                    }
                     placeholder="Example: A"
                     maxLength={10}
                     disabled={isSaving}
@@ -453,12 +474,15 @@ export default function SectionsPage() {
                   <label className="text-xs font-medium">Capacity</label>
 
                   <Input
-                    type="number"
-                    min="1"
-                    max="32767"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={capacity}
-                    onChange={(event) => setCapacity(event.target.value)}
+                    onChange={(event) =>
+                      setCapacity(onlyDigits(event.target.value, 5))
+                    }
                     placeholder="Example: 45"
+                    maxLength={5}
                     disabled={isSaving}
                   />
                 </div>

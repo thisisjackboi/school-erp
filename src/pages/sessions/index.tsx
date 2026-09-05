@@ -32,6 +32,13 @@ import {
   updateAcademicSession,
 } from "@/lib/api/academic-sessions.api";
 
+import {
+  LIMITS,
+  firstError,
+  validateMaxLength,
+  validateRequired,
+} from "@/lib/input-restrictions";
+
 interface SessionFormData {
   name: string;
   startDate: string;
@@ -159,6 +166,26 @@ export default function SessionsPage() {
     event.preventDefault();
 
     if (!accessToken) {
+      return;
+    }
+
+    const nameError = firstError(
+      validateRequired(formData.name, "Session name"),
+      validateMaxLength(formData.name, "Session name", LIMITS.NAME_MAX),
+    );
+    if (nameError) {
+      setError(nameError);
+      return;
+    }
+
+    if (
+      formData.startDate &&
+      formData.endDate &&
+      formData.endDate < formData.startDate
+    ) {
+      setError(
+        "End date cannot be before the start date.",
+      );
       return;
     }
 
@@ -439,10 +466,11 @@ export default function SessionsPage() {
                     onChange={(event) =>
                       handleInputChange(
                         "name",
-                        event.target.value,
+                        event.target.value.slice(0, LIMITS.NAME_MAX),
                       )
                     }
                     placeholder="Example: 2026-2027"
+                    maxLength={LIMITS.NAME_MAX}
                     required
                   />
                 </div>

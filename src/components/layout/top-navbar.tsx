@@ -51,7 +51,7 @@ export function TopNavbar() {
       {/* Right section: Role Switcher, Theme Toggle, Notifications, Profile */}
       <div className="flex items-center space-x-3">
         {/* Role Switcher */}
-        <RoleSwitcher />
+        {/* <RoleSwitcher /> */}
 
         {/* Theme Toggle */}
         <button

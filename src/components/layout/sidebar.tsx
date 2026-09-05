@@ -31,6 +31,7 @@ import {
   FileCheck,
   BarChart3,
   Settings,
+  ClipboardCheck,
   ChevronLeft,
   ChevronRight,
   GraduationCap as SchoolLogo,
@@ -64,6 +65,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   FileCheck,
   BarChart3,
   Settings,
+  ClipboardCheck,
 };
 
 export function Sidebar() {
@@ -90,7 +92,7 @@ export function Sidebar() {
           {!collapsed && (
             <div className="flex flex-col">
               <span className="text-sm font-bold text-white tracking-tight leading-tight">
-                Apex International
+                PrismaEd+
               </span>
               <span className="text-[10px] text-slate-400 font-medium leading-none mt-0.5">
                 School ERP Enterprise

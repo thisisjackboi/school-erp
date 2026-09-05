@@ -30,6 +30,14 @@ import {
 
 import type { Permission } from "@/lib/types/rbac";
 
+import {
+  LIMITS,
+  firstError,
+  onlyCode,
+  trimMax,
+  validateMaxLength,
+} from "@/lib/input-restrictions";
+
 const PAGE_LIMIT = 50;
 
 export default function PermissionsPage() {
@@ -214,6 +222,16 @@ export default function PermissionsPage() {
 
     if (!trimmedModule) {
       setError("Module is required.");
+      return;
+    }
+
+    const lengthError = firstError(
+      validateMaxLength(trimmedCode, "Permission code", 50),
+      validateMaxLength(trimmedModule, "Module", LIMITS.NAME_MAX),
+      validateMaxLength(trimmedDescription, "Description", LIMITS.REMARKS_MAX),
+    );
+    if (lengthError) {
+      setError(lengthError);
       return;
     }
 
@@ -615,9 +633,10 @@ export default function PermissionsPage() {
                   <Input
                     value={code}
                     onChange={(event) =>
-                      setCode(event.target.value)
+                      setCode(trimMax(event.target.value, 50))
                     }
                     placeholder="Example: students.create"
+                    maxLength={50}
                     disabled={isSaving}
                   />
                 </div>
@@ -630,9 +649,10 @@ export default function PermissionsPage() {
                   <Input
                     value={module}
                     onChange={(event) =>
-                      setModule(event.target.value)
+                      setModule(onlyCode(event.target.value, LIMITS.NAME_MAX))
                     }
                     placeholder="Example: students"
+                    maxLength={LIMITS.NAME_MAX}
                     disabled={isSaving}
                   />
                 </div>
@@ -646,11 +666,15 @@ export default function PermissionsPage() {
                     value={description}
                     onChange={(event) =>
                       setDescription(
-                        event.target.value,
+                        trimMax(
+                          event.target.value,
+                          LIMITS.REMARKS_MAX,
+                        ),
                       )
                     }
                     placeholder="Describe what this permission allows..."
                     rows={4}
+                    maxLength={LIMITS.REMARKS_MAX}
                     disabled={isSaving}
                     className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
                   />

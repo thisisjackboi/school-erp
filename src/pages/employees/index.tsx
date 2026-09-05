@@ -15,6 +15,21 @@ import type {
   Gender,
 } from "@/lib/types/employee";
 
+import {
+  LIMITS,
+  firstError,
+  onlyCode,
+  onlyDigits,
+  onlyName,
+  onlyUsername,
+  trimMax,
+  validateEmail,
+  validateMaxLength,
+  validateName,
+  validatePhone,
+  validateRequired,
+} from "@/lib/input-restrictions";
+
 type Designation = {
   id: string;
   title: string;
@@ -156,9 +171,37 @@ export default function EmployeesPage() {
   ) {
     const { name, value } = event.target;
 
+    let next = value;
+
+    switch (name) {
+      case "employeeCode":
+        next = onlyCode(value, LIMITS.CODE_MAX);
+        break;
+      case "firstName":
+      case "lastName":
+        next = onlyName(value, LIMITS.NAME_MAX);
+        break;
+      case "phone":
+      case "userPhone":
+        next = onlyDigits(value, LIMITS.PHONE_MAX);
+        break;
+      case "username":
+        next = onlyUsername(value, LIMITS.USERNAME_MAX);
+        break;
+      case "email":
+        next = trimMax(value, LIMITS.EMAIL_MAX);
+        break;
+      case "address":
+        next = trimMax(value, LIMITS.ADDRESS_MAX);
+        break;
+      case "password":
+        next = trimMax(value, LIMITS.TEXT_MAX);
+        break;
+    }
+
     setForm((previous) => ({
       ...previous,
-      [name]: value,
+      [name]: next,
     }));
   }
 
@@ -168,6 +211,54 @@ export default function EmployeesPage() {
     if (!accessToken) {
       setError("Unauthorized");
       return;
+    }
+
+    const validationError = firstError(
+      validateRequired(form.employeeCode, "Employee code"),
+      validateMaxLength(
+        form.employeeCode,
+        "Employee code",
+        LIMITS.CODE_MAX,
+      ),
+      validateRequired(form.firstName, "First name"),
+      validateName(form.firstName, "First name"),
+      validateName(form.lastName, "Last name"),
+      validateRequired(form.phone, "Phone number"),
+      validatePhone(form.phone, "Phone number"),
+      validateMaxLength(form.address, "Address", LIMITS.ADDRESS_MAX),
+      validateMaxLength(form.email, "Email", LIMITS.EMAIL_MAX),
+    );
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    if (form.createUser) {
+      const userError = firstError(
+        validateRequired(form.username, "Username"),
+        validateMaxLength(
+          form.username,
+          "Username",
+          LIMITS.USERNAME_MAX,
+        ),
+        validateRequired(form.password, "Password"),
+        validateMaxLength(form.password, "Password", LIMITS.TEXT_MAX),
+      );
+
+      if (userError) {
+        setError(userError);
+        return;
+      }
+
+      if (form.email.trim() && !validateEmail(form.email)) {
+        setError(validateEmail(form.email));
+        return;
+      }
+
+      if (form.userPhone.trim() && !validatePhone(form.userPhone)) {
+        setError(validatePhone(form.userPhone));
+        return;
+      }
     }
 
     try {
@@ -409,6 +500,7 @@ export default function EmployeesPage() {
                     value={form.employeeCode}
                     onChange={handleChange}
                     required
+                    maxLength={LIMITS.CODE_MAX}
                     className="mt-1 w-full rounded-md border px-3 py-2"
                   />
                 </label>
@@ -420,6 +512,7 @@ export default function EmployeesPage() {
                     value={form.firstName}
                     onChange={handleChange}
                     required
+                    maxLength={LIMITS.NAME_MAX}
                     className="mt-1 w-full rounded-md border px-3 py-2"
                   />
                 </label>
@@ -431,6 +524,7 @@ export default function EmployeesPage() {
                     value={form.lastName}
                     onChange={handleChange}
                     required
+                    maxLength={LIMITS.NAME_MAX}
                     className="mt-1 w-full rounded-md border px-3 py-2"
                   />
                 </label>
@@ -513,6 +607,9 @@ export default function EmployeesPage() {
                     value={form.phone}
                     onChange={handleChange}
                     required
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={LIMITS.PHONE_MAX}
                     className="mt-1 w-full rounded-md border px-3 py-2"
                   />
                 </label>
@@ -540,6 +637,7 @@ export default function EmployeesPage() {
                   value={form.address}
                   onChange={handleChange}
                   rows={3}
+                  maxLength={LIMITS.ADDRESS_MAX}
                   className="mt-1 w-full rounded-md border px-3 py-2"
                 />
               </label>
@@ -584,6 +682,7 @@ export default function EmployeesPage() {
                             value={form.username}
                             onChange={handleChange}
                             required
+                            maxLength={LIMITS.USERNAME_MAX}
                             className="mt-1 w-full rounded-md border bg-white px-3 py-2"
                           />
                         </label>
@@ -596,6 +695,7 @@ export default function EmployeesPage() {
                             name="email"
                             value={form.email}
                             onChange={handleChange}
+                            maxLength={LIMITS.EMAIL_MAX}
                             className="mt-1 w-full rounded-md border bg-white px-3 py-2"
                           />
                         </label>
@@ -609,6 +709,9 @@ export default function EmployeesPage() {
                             name="userPhone"
                             value={form.userPhone}
                             onChange={handleChange}
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            maxLength={LIMITS.PHONE_MAX}
                             className="mt-1 w-full rounded-md border bg-white px-3 py-2"
                           />
                         </label>
@@ -623,6 +726,7 @@ export default function EmployeesPage() {
                             onChange={handleChange}
                             required
                             minLength={8}
+                            maxLength={LIMITS.TEXT_MAX}
                             className="mt-1 w-full rounded-md border bg-white px-3 py-2"
                           />
                         </label>
