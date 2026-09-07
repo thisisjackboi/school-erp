@@ -13,7 +13,7 @@ function getAuthHeaders(accessToken?: string | null) {
 }
 
 export interface CreateAdmissionPayload {
-  applicationNumber: string;
+  applicationNumber?: string;
   applicantFirstName: string;
   applicantLastName: string;
   dateOfBirth: string;
@@ -40,6 +40,41 @@ export interface ConvertAdmissionPayload {
   sectionId: string;
   username: string;
   password: string;
+  admissionNumber?: string;
+  rollNumber?: string;
+}
+
+export async function getNextApplicationNumber(
+  accessToken?: string | null,
+): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/admissions/next-application-number`, {
+    headers: getAuthHeaders(accessToken),
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Failed to fetch next application number");
+  }
+
+  return result.data.applicationNumber;
+}
+
+export async function getNextConversionNumbers(
+  sectionId: string,
+  academicSessionId: string,
+  accessToken?: string | null,
+): Promise<{ admissionNumber: string; rollNumber: string }> {
+  const params = new URLSearchParams({ sectionId, academicSessionId });
+  const response = await fetch(`${API_BASE_URL}/admissions/next-conversion-numbers?${params.toString()}`, {
+    headers: getAuthHeaders(accessToken),
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Failed to fetch conversion numbers");
+  }
+
+  return result.data;
 }
 
 export async function getAdmissions(

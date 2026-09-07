@@ -12,10 +12,10 @@ import { StepForm } from "@/components/enterprise/step-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { UserPlus, ArrowRight, ArrowLeft, Check } from "lucide-react";
+import { UserPlus, ArrowRight, ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/lib/auth/auth-context";
-import { createAdmission, updateAdmission } from "@/lib/api/admissions.api";
+import { createAdmission, updateAdmission, getNextApplicationNumber } from "@/lib/api/admissions.api";
 import { getClasses } from "@/lib/api/classes.api";
 import { getAcademicSessions } from "@/lib/api/academic-sessions.api";
 
@@ -70,7 +70,22 @@ export function AdmissionFormDialog({
     guardianPhone: "",
   });
 
+  const [loadingAppNo, setLoadingAppNo] = useState(false);
+
   const isEditMode = !!admission;
+
+  const fetchNextAppNumber = React.useCallback(async () => {
+    if (!accessToken || isEditMode) return;
+    try {
+      setLoadingAppNo(true);
+      const nextNum = await getNextApplicationNumber(accessToken);
+      setFormData((prev) => ({ ...prev, applicationNumber: nextNum }));
+    } catch {
+      // Non-blocking fallback
+    } finally {
+      setLoadingAppNo(false);
+    }
+  }, [accessToken, isEditMode]);
 
   const steps = [
     {
@@ -133,6 +148,8 @@ export function AdmissionFormDialog({
         setAcademicSessions(sessionsData);
 
         if (!admission) {
+          void fetchNextAppNumber();
+
           const currentSession = sessionsData.find(
             (session) => session.isCurrent,
           );
@@ -163,7 +180,7 @@ export function AdmissionFormDialog({
     };
 
     void loadOptions();
-  }, [open, accessToken, admission]);
+  }, [open, accessToken, admission, fetchNextAppNumber]);
 
   const updateField = (field: keyof typeof formData, value: string) => {
     let next = value;
@@ -194,19 +211,16 @@ export function AdmissionFormDialog({
     setError(null);
 
     if (currentStep === 0) {
-      if (!formData.applicationNumber.trim()) {
-        setError("Application number is required.");
-        return false;
-      }
-
-      const appNoError = validateMaxLength(
-        formData.applicationNumber,
-        "Application number",
-        20,
-      );
-      if (appNoError) {
-        setError(appNoError);
-        return false;
+      if (formData.applicationNumber.trim()) {
+        const appNoError = validateMaxLength(
+          formData.applicationNumber,
+          "Application number",
+          20,
+        );
+        if (appNoError) {
+          setError(appNoError);
+          return false;
+        }
       }
 
       if (!formData.firstName.trim()) {
@@ -414,19 +428,40 @@ export function AdmissionFormDialog({
           {currentStep === 0 && (
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="col-span-2">
-                <label className="font-semibold block mb-1">
-                  Application Number *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold block">
+                    Application Number *
+                  </label>
+                  {!isEditMode && (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                      <Sparkles className="h-3 w-3" /> Auto-Generated
+                    </span>
+                  )}
+                </div>
 
-                <Input
-                  placeholder="e.g. ADM-2026-001"
-                  value={formData.applicationNumber}
-                  disabled={isEditMode}
-                  maxLength={20}
-                  onChange={(event) =>
-                    updateField("applicationNumber", event.target.value)
-                  }
-                />
+                <div className="relative flex items-center">
+                  <Input
+                    placeholder="Auto-generated e.g. APP-2026-0001"
+                    value={formData.applicationNumber}
+                    disabled={isEditMode}
+                    maxLength={20}
+                    onChange={(event) =>
+                      updateField("applicationNumber", event.target.value)
+                    }
+                    className={!isEditMode ? "pr-8" : ""}
+                  />
+                  {!isEditMode && (
+                    <button
+                      type="button"
+                      onClick={fetchNextAppNumber}
+                      disabled={loadingAppNo}
+                      title="Refresh next auto-generated application number"
+                      className="absolute right-2 text-slate-400 hover:text-blue-600 disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${loadingAppNo ? "animate-spin" : ""}`} />
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div>

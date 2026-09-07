@@ -13,6 +13,7 @@ import {
   deleteAdmission,
   updateAdmissionStatus,
   convertAdmission,
+  getNextConversionNumbers,
 } from "@/lib/api/admissions.api";
 
 import { useAuth } from "@/lib/auth/auth-context";
@@ -34,7 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
-import { Eye, Pencil, Plus, ShieldCheck, Trash2, UserCheck, X } from "lucide-react";
+import { Eye, Pencil, Plus, RefreshCw, ShieldCheck, Sparkles, Trash2, UserCheck, X } from "lucide-react";
 
 import {
   LIMITS,
@@ -74,11 +75,14 @@ export default function AdmissionsPage() {
   const [convertAdmissionTarget, setConvertAdmissionTarget] = useState<Admission | null>(null);
   const [availableSections, setAvailableSections] = useState<Section[]>([]);
   const [loadingSections, setLoadingSections] = useState(false);
+  const [loadingConversionNumbers, setLoadingConversionNumbers] = useState(false);
   const [converting, setConverting] = useState(false);
   const [convertForm, setConvertForm] = useState({
     sectionId: "",
     username: "",
     password: "",
+    admissionNumber: "",
+    rollNumber: "",
   });
 
   const { toast } = useToast();
@@ -92,6 +96,8 @@ export default function AdmissionsPage() {
       sectionId: "",
       username: sanitizedUsername || admission.applicationNumber.toLowerCase().replace(/[^a-z0-9]/g, ""),
       password: "",
+      admissionNumber: "",
+      rollNumber: "",
     });
 
     if (!accessToken) return;
@@ -135,6 +141,29 @@ export default function AdmissionsPage() {
     }
   };
 
+  const handleConvertSectionChange = async (sectionId: string) => {
+    setConvertForm((prev) => ({ ...prev, sectionId }));
+    if (!sectionId || !convertAdmissionTarget || !accessToken) return;
+
+    try {
+      setLoadingConversionNumbers(true);
+      const numbers = await getNextConversionNumbers(
+        sectionId,
+        convertAdmissionTarget.academicSessionId,
+        accessToken,
+      );
+      setConvertForm((prev) => ({
+        ...prev,
+        admissionNumber: numbers.admissionNumber,
+        rollNumber: numbers.rollNumber,
+      }));
+    } catch {
+      // Non-blocking fallback
+    } finally {
+      setLoadingConversionNumbers(false);
+    }
+  };
+
   const handleConvertSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!convertAdmissionTarget || !accessToken) return;
@@ -163,19 +192,24 @@ export default function AdmissionsPage() {
 
     try {
       setConverting(true);
-      await convertAdmission(
+      const result = await convertAdmission(
         convertAdmissionTarget.id,
         {
           sectionId: convertForm.sectionId,
           username: convertForm.username.trim(),
           password: convertForm.password,
+          admissionNumber: convertForm.admissionNumber.trim() || undefined,
+          rollNumber: convertForm.rollNumber.trim() || undefined,
         },
         accessToken,
       );
 
+      const createdAdmissionNo = result.student?.admissionNumber || convertForm.admissionNumber || "Auto";
+      const createdRollNo = result.enrollment?.rollNumber || convertForm.rollNumber || "Auto";
+
       toast(
-        "Student Created",
-        `Candidate ${convertAdmissionTarget.applicantFirstName} was successfully converted to an active student!`,
+        "Student Created Successfully",
+        `Candidate ${convertAdmissionTarget.applicantFirstName} was enrolled! Enrollment No: ${createdAdmissionNo} | Roll No: ${createdRollNo}`,
         "success",
       );
 
@@ -721,9 +755,7 @@ export default function AdmissionsPage() {
             </label>
             <select
               value={convertForm.sectionId}
-              onChange={(e) =>
-                setConvertForm((prev) => ({ ...prev, sectionId: e.target.value }))
-              }
+              onChange={(e) => handleConvertSectionChange(e.target.value)}
               disabled={loadingSections || converting}
               className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
             >
@@ -736,6 +768,58 @@ export default function AdmissionsPage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-semibold block">
+                  Enrollment / Admission No.
+                </label>
+                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  <Sparkles className="h-3 w-3" /> Auto
+                </span>
+              </div>
+              <Input
+                placeholder="e.g. STD-2026-0001"
+                value={convertForm.admissionNumber}
+                onChange={(e) =>
+                  setConvertForm((prev) => ({
+                    ...prev,
+                    admissionNumber: e.target.value,
+                  }))
+                }
+                disabled={converting || loadingConversionNumbers}
+              />
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Auto-generated unique student enrollment number.
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-semibold block">
+                  Section Roll Number
+                </label>
+                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  <Sparkles className="h-3 w-3" /> Auto
+                </span>
+              </div>
+              <Input
+                placeholder="e.g. 1"
+                value={convertForm.rollNumber}
+                onChange={(e) =>
+                  setConvertForm((prev) => ({
+                    ...prev,
+                    rollNumber: e.target.value,
+                  }))
+                }
+                disabled={converting || loadingConversionNumbers}
+              />
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Sequential roll number in section.
+              </p>
+            </div>
           </div>
 
           <div>
