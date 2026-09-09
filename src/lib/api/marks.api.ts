@@ -146,3 +146,20 @@ export async function deleteMark(
     throw new Error(result.message || "Failed to delete mark");
   }
 }
+
+export async function deleteMarks(
+  marks: Mark[],
+  accessToken?: string | null
+): Promise<{ deleted: number; failed: string[] }> {
+  let deleted = 0;
+  const failed: string[] = [];
+  for (const m of marks) {
+    try {
+      await deleteMark(m.id, accessToken);
+      deleted++;
+    } catch {
+      failed.push(m.id);
+    }
+  }
+  return { deleted, failed };
+}

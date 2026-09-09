@@ -111,3 +111,20 @@ export async function deleteExamResult(
     throw new Error(result.message || "Failed to delete exam result");
   }
 }
+
+export async function deleteExamResults(
+  results: ExamResult[],
+  accessToken?: string | null
+): Promise<{ deleted: number; failed: string[] }> {
+  let deleted = 0;
+  const failed: string[] = [];
+  for (const r of results) {
+    try {
+      await deleteExamResult(r.id, accessToken);
+      deleted++;
+    } catch {
+      failed.push(r.studentEnrollmentId);
+    }
+  }
+  return { deleted, failed };
+}

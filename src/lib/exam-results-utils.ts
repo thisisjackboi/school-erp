@@ -28,6 +28,7 @@ export interface StudentResultRow {
   grade: Grade | null;
   rank: number | null;
   status: string;
+  hasMarks: boolean;
 }
 
 /**
@@ -92,6 +93,7 @@ export function buildStudentResults(params: {
       grade,
       rank: result?.rankInSection || null,
       status: result?.resultStatus || "PENDING",
+      hasMarks: subjectMarks.length > 0,
     };
   });
 

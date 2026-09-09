@@ -20,6 +20,8 @@ import AttendancePage from "@/pages/attendance";
 import HomeworkPage from "@/pages/homework";
 import TimetablePage from "@/pages/timetable";
 import ExamsPage from "@/pages/exams";
+import ExamTypesPage from "@/pages/exam-types";
+import ExamSchedulesPage from "@/pages/exam-schedules";
 import MarksPage from "@/pages/marks";
 import MarksEntryPage from "@/pages/marks-entry";
 import ResultsPage from "@/pages/results";
@@ -82,6 +84,8 @@ export function App() {
           <Route path="/homework" element={<HomeworkPage />} />
           <Route path="/timetable" element={<TimetablePage />} />
           <Route path="/exams" element={<ExamsPage />} />
+          <Route path="/exam-types" element={<ExamTypesPage />} />
+          <Route path="/exam-schedules" element={<ExamSchedulesPage />} />
           <Route path="/marks" element={<MarksPage />} />
           <Route path="/marks-entry" element={<MarksEntryPage />} />
           <Route path="/results" element={<ResultsPage />} />

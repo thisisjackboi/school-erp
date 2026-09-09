@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import {
   Loader2, ChevronDown, ChevronRight, Award, Users, TrendingUp,
-  AlertCircle, X, Printer, BarChart3, CheckCircle2, Lock,
+  AlertCircle, X, Printer, BarChart3, CheckCircle2, Lock, RotateCcw, Trash2,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,8 +21,8 @@ import { getExamSchedules } from "@/lib/api/exam-schedules.api";
 import { getClasses } from "@/lib/api/classes.api";
 import { getSections } from "@/lib/api/sections.api";
 import { getStudents } from "@/lib/api/students.api";
-import { getMarks } from "@/lib/api/marks.api";
-import { getExamResults, createExamResult, type CreateExamResultPayload } from "@/lib/api/exam-results.api";
+import { getMarks, deleteMarks } from "@/lib/api/marks.api";
+import { getExamResults, createExamResult, deleteExamResults, type CreateExamResultPayload } from "@/lib/api/exam-results.api";
 import { getGrades, createGrade, updateGrade, deleteGrade, type CreateGradePayload } from "@/lib/api/grades.api";
 
 import type { AcademicSession } from "@/lib/types/academic-session";
@@ -75,6 +75,8 @@ export default function ResultsPage() {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [loadingResults, setLoadingResults] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [reverting, setReverting] = useState(false);
+  const [deletingMarks, setDeletingMarks] = useState(false);
 
   // ── Views ────────────────────────────────────────────────────
   const [selectedStudent, setSelectedStudent] = useState<StudentResultRow | null>(null);
@@ -85,6 +87,8 @@ export default function ResultsPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string } | null>(null);
   const [generateConfirmOpen, setGenerateConfirmOpen] = useState(false);
+  const [revertConfirmOpen, setRevertConfirmOpen] = useState(false);
+  const [deleteMarksConfirmOpen, setDeleteMarksConfirmOpen] = useState(false);
 
   // ── Derived Data ─────────────────────────────────────────────
   const selectedExam = useMemo(() => exams.find((e) => e.id === selectedExamId), [exams, selectedExamId]);
@@ -100,7 +104,7 @@ export default function ResultsPage() {
   }, [sections, selectedClassId, selectedSession]);
 
   // ── Student Results Calculation ──────────────────────────────
-  const studentResults = useMemo(() => {
+  const allStudentResults = useMemo(() => {
     if (!selectedExamId || students.length === 0) return [];
     return buildStudentResults({
       students,
@@ -112,6 +116,11 @@ export default function ResultsPage() {
     });
   }, [students, examResults, allMarks, examSchedules, selectedExamId, grades]);
 
+  // Only students who have at least some marks entered OR a generated result
+  const studentResults = useMemo(() => {
+    return allStudentResults.filter((r) => r.hasMarks || r.result);
+  }, [allStudentResults]);
+
   // ── Overview Stats ───────────────────────────────────────────
   const stats = useMemo(() => {
     const total = studentResults.length;
@@ -121,8 +130,9 @@ export default function ResultsPage() {
       ? studentResults.filter((r) => r.result).reduce((sum, r) => sum + r.percentage, 0) / (generated || 1)
       : 0;
     const passCount = studentResults.filter((r) => r.result?.resultStatus === "PASS").length;
-    return { total, generated, pending, avg, passCount };
-  }, [studentResults]);
+    const hasAnyMarks = allStudentResults.some((r) => r.hasMarks);
+    return { total, generated, pending, avg, passCount, hasAnyMarks };
+  }, [studentResults, allStudentResults]);
 
   // ── Load Reference Data ──────────────────────────────────────
   useEffect(() => {
@@ -254,8 +264,8 @@ export default function ResultsPage() {
   const handleGenerateAll = async () => {
     if (!selectedExamId) return;
     setGenerateConfirmOpen(false);
-    const pendingRows = studentResults.filter((r) => !r.result && r.subjectMarks.length > 0);
-    if (pendingRows.length === 0) return toast("Info", "All students already have results.", "info");
+    const pendingRows = studentResults.filter((r) => !r.result && r.hasMarks);
+    if (pendingRows.length === 0) return toast("Info", "No students with marks pending generation.", "info");
 
     setGenerating(true);
     let successCount = 0;
@@ -274,6 +284,33 @@ export default function ResultsPage() {
     const results = await getExamResults({ examId: selectedExamId }, accessToken).catch(() => []);
     setExamResults(results || []);
     setGenerating(false);
+  };
+
+  // ── Revert All Results ──────────────────────────────────────
+  const handleRevertResults = async () => {
+    setRevertConfirmOpen(false);
+    if (!selectedExamId || examResults.length === 0) return;
+    setReverting(true);
+    const { deleted, failed } = await deleteExamResults(examResults, accessToken);
+    let msg = `Reverted ${deleted} result${deleted !== 1 ? "s" : ""}.`;
+    if (failed.length > 0) msg += ` ${failed.length} failed.`;
+    toast("Reverted", msg, deleted > 0 ? "success" : "error");
+    const results = await getExamResults({ examId: selectedExamId }, accessToken).catch(() => []);
+    setExamResults(results || []);
+    setReverting(false);
+  };
+
+  // ── Delete All Marks ────────────────────────────────────────
+  const handleDeleteAllMarks = async () => {
+    setDeleteMarksConfirmOpen(false);
+    if (!selectedExamId || allMarks.length === 0) return;
+    setDeletingMarks(true);
+    const { deleted, failed } = await deleteMarks(allMarks, accessToken);
+    let msg = `Deleted ${deleted} mark${deleted !== 1 ? "s" : ""}.`;
+    if (failed.length > 0) msg += ` ${failed.length} failed.`;
+    toast("Deleted", msg, deleted > 0 ? "success" : "error");
+    setAllMarks([]);
+    setDeletingMarks(false);
   };
 
   // ── Grade CRUD ───────────────────────────────────────────────
@@ -545,26 +582,56 @@ export default function ResultsPage() {
             <span className="text-blue-400">•</span>
             <span className="font-medium">{selectedClassName} • {selectedSectionName}</span>
           </div>
-          {stats.pending > 0 ? (
-            <Button
-              size="sm"
-              onClick={() => setGenerateConfirmOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-xs"
-            >
-              <Award className="h-3.5 w-3.5 mr-1" />
-              Generate Results ({stats.pending})
-            </Button>
-          ) : (
-            <div className="flex items-center gap-2 text-xs bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md px-3 py-2">
-              <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-              <span className="font-medium text-green-700 dark:text-green-300">All results generated</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {stats.generated > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setRevertConfirmOpen(true)}
+                disabled={reverting}
+                className="text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20"
+              >
+                {reverting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RotateCcw className="h-3.5 w-3.5 mr-1" />}
+                Revert Results ({stats.generated})
+              </Button>
+            )}
+            {stats.generated === 0 && allMarks.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setDeleteMarksConfirmOpen(true)}
+                disabled={deletingMarks}
+                className="text-xs border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+              >
+                {deletingMarks ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
+                Delete All Marks
+              </Button>
+            )}
+            {stats.pending > 0 ? (
+              <Button
+                size="sm"
+                onClick={() => setGenerateConfirmOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-xs"
+              >
+                <Award className="h-3.5 w-3.5 mr-1" />
+                Generate Results ({stats.pending})
+              </Button>
+            ) : stats.hasAnyMarks && stats.generated > 0 ? (
+              <div className="flex items-center gap-2 text-xs bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md px-3 py-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                <span className="font-medium text-green-700 dark:text-green-300">All results generated</span>
+              </div>
+            ) : !stats.hasAnyMarks && students.length > 0 ? (
+              <div className="text-xs text-amber-600 dark:text-amber-400">
+                Enter marks first to generate results
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
 
       {/* ── Pending Results Notice ─────────────────────────── */}
-      {hasResults && stats.pending > 0 && (
+      {hasResults && stats.pending > 0 && stats.hasAnyMarks && (
         <div className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">
           <strong>{stats.pending} student{stats.pending !== 1 ? "s" : ""}</strong> have marks entered but results not yet generated.
           Click <strong>"Generate Results"</strong> to aggregate all subject marks into finalized results with totals, percentages, grades, and ranks.
@@ -648,8 +715,17 @@ export default function ResultsPage() {
             ) : studentResults.length === 0 ? (
               <div className="py-12 text-center">
                 <BarChart3 className="h-8 w-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No students found for this section.</p>
-                <p className="text-xs text-muted-foreground mt-1">Make sure students are enrolled and marks have been entered.</p>
+                {students.length > 0 && !stats.hasAnyMarks ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">No marks entered yet.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Go to Marks Entry to enter marks for students before viewing results.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">No students found for this section.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Make sure students are enrolled and marks have been entered.</p>
+                  </>
+                )}
               </div>
             ) : (
               <Table>
@@ -772,24 +848,32 @@ export default function ResultsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {selectedStudent.subjectMarks.map((sm, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="text-xs font-medium">{sm.subject}</TableCell>
-                        <TableCell className="text-xs text-right tabular-nums">{sm.maxMarks}</TableCell>
-                        <TableCell className="text-xs text-right font-semibold tabular-nums">
-                          {sm.isAbsent ? "AB" : sm.marks}
-                        </TableCell>
-                        <TableCell className="text-xs text-center">
-                          {sm.isAbsent ? (
-                            <StatusChip status="absent" />
-                          ) : sm.marks >= sm.passingMarks ? (
-                            <StatusChip status="pass" />
-                          ) : (
-                            <StatusChip status="fail" />
-                          )}
+                    {selectedStudent.subjectMarks.length > 0 ? (
+                      selectedStudent.subjectMarks.map((sm, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="text-xs font-medium">{sm.subject}</TableCell>
+                          <TableCell className="text-xs text-right tabular-nums">{sm.maxMarks}</TableCell>
+                          <TableCell className="text-xs text-right font-semibold tabular-nums">
+                            {sm.isAbsent ? "AB" : sm.marks}
+                          </TableCell>
+                          <TableCell className="text-xs text-center">
+                            {sm.isAbsent ? (
+                              <StatusChip status="absent" />
+                            ) : sm.marks >= sm.passingMarks ? (
+                              <StatusChip status="pass" />
+                            ) : (
+                              <StatusChip status="fail" />
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-xs text-center text-muted-foreground py-4">
+                          No marks entered for this student.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -845,6 +929,54 @@ export default function ResultsPage() {
           <Button onClick={handleGenerateAll} disabled={generating} className="bg-blue-600 hover:bg-blue-700 text-xs">
             {generating && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
             Confirm Generate
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* ── Confirm Revert Results ────────────────────────── */}
+      <Dialog open={revertConfirmOpen} onOpenChange={setRevertConfirmOpen}>
+        <DialogHeader>
+          <DialogTitle>Revert Results</DialogTitle>
+        </DialogHeader>
+        <div className="py-4 text-xs text-muted-foreground space-y-2">
+          <p>
+            This will delete <strong className="text-foreground">{stats.generated}</strong> generated result{stats.generated !== 1 ? "s" : ""} for{" "}
+            <strong className="text-foreground">{selectedExam?.name}</strong> ({selectedClassName} • {selectedSectionName}).
+          </p>
+          <p>After reverting, marks will be unlocked and can be edited again.</p>
+          <p className="text-amber-600 dark:text-amber-400">
+            This action cannot be undone. Results will need to be regenerated.
+          </p>
+        </div>
+        <div className="flex justify-end space-x-2 pt-4 border-t border-border">
+          <Button variant="outline" onClick={() => setRevertConfirmOpen(false)} className="text-xs">Cancel</Button>
+          <Button onClick={handleRevertResults} disabled={reverting} className="bg-amber-600 hover:bg-amber-700 text-xs">
+            {reverting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
+            Revert Results
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* ── Confirm Delete All Marks ──────────────────────── */}
+      <Dialog open={deleteMarksConfirmOpen} onOpenChange={setDeleteMarksConfirmOpen}>
+        <DialogHeader>
+          <DialogTitle>Delete All Marks</DialogTitle>
+        </DialogHeader>
+        <div className="py-4 text-xs text-muted-foreground space-y-2">
+          <p>
+            This will permanently delete <strong className="text-foreground">all marks</strong> for{" "}
+            <strong className="text-foreground">{selectedExam?.name}</strong> ({selectedClassName} • {selectedSectionName}).
+          </p>
+          <p>All entered marks for every subject in this exam will be removed.</p>
+          <p className="text-red-600 dark:text-red-400">
+            This action cannot be undone. You will need to re-enter all marks.
+          </p>
+        </div>
+        <div className="flex justify-end space-x-2 pt-4 border-t border-border">
+          <Button variant="outline" onClick={() => setDeleteMarksConfirmOpen(false)} className="text-xs">Cancel</Button>
+          <Button onClick={handleDeleteAllMarks} disabled={deletingMarks} className="bg-red-600 hover:bg-red-700 text-xs">
+            {deletingMarks && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
+            Delete All Marks
           </Button>
         </div>
       </Dialog>
