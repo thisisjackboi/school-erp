@@ -26,7 +26,13 @@ import MarksPage from "@/pages/marks";
 import MarksEntryPage from "@/pages/marks-entry";
 import ResultsPage from "@/pages/results";
 import ReportCardsPage from "@/pages/report-cards";
-import FeesPage from "@/pages/fees";
+import FeesModulePage from "@/pages/fees/index";
+import FeeDashboardPage from "@/pages/fees/dashboard";
+import FeeSetupPage from "@/pages/fees/setup";
+import FeeStudentsPage from "@/pages/fees/students";
+import FeeStudentProfilePage from "@/pages/fees/student-profile";
+import FeeCollectPage from "@/pages/fees/collect";
+import FeeReportsPage from "@/pages/fees/reports";
 import FinancePage from "@/pages/finance";
 import PayrollPage from "@/pages/payroll";
 import TeachersPage from "@/pages/teachers";
@@ -90,7 +96,15 @@ export function App() {
           <Route path="/marks-entry" element={<MarksEntryPage />} />
           <Route path="/results" element={<ResultsPage />} />
           <Route path="/report-cards" element={<ReportCardsPage />} />
-          <Route path="/fees" element={<FeesPage />} />
+          <Route path="/fees" element={<FeesModulePage />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<FeeDashboardPage />} />
+            <Route path="setup" element={<FeeSetupPage />} />
+            <Route path="students" element={<FeeStudentsPage />} />
+            <Route path="students/:enrollmentId" element={<FeeStudentProfilePage />} />
+            <Route path="collect" element={<FeeCollectPage />} />
+            <Route path="reports" element={<FeeReportsPage />} />
+          </Route>
           <Route path="/finance" element={<FinancePage />} />
           <Route path="/payroll" element={<PayrollPage />} />
           <Route path="/teachers" element={<TeachersPage />} />

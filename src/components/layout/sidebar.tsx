@@ -32,6 +32,7 @@ import {
   BarChart3,
   Settings,
   ClipboardCheck,
+  Wallet,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -67,6 +68,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   BarChart3,
   Settings,
   ClipboardCheck,
+  Wallet,
 };
 
 export function Sidebar() {
