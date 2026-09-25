@@ -1,6 +1,8 @@
 // Shared input-restriction constants, sanitizers and validators used across
 // all project forms. Keeps field rules consistent and production-ready.
 
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+
 export const LIMITS = {
   NAME_MAX: 50,
   USERNAME_MAX: 30,
@@ -86,8 +88,21 @@ export function validateEmail(value: string, label = "Email"): ValidationResult 
   return REGEX.EMAIL.test(value.trim()) ? "" : `Enter a valid ${label.toLowerCase()} address (e.g. name@school.edu).`;
 }
 
+export const REGEX_PHONE_INTL = /^\+\d{8,15}$/;
+
 export function validatePhone(value: string, label = "Phone number"): ValidationResult {
-  return REGEX.PHONE_10.test(value.trim()) ? "" : `Enter a valid 10-digit ${label.toLowerCase()}.`;
+  const v = value.trim();
+  if (!v) return "";
+  if (!v.startsWith("+")) {
+    return REGEX.PHONE_10.test(v)
+      ? ""
+      : `Enter a valid ${label.toLowerCase()} (e.g. 9876543210).`;
+  }
+  const parsed = parsePhoneNumberFromString(v);
+  const ok = Boolean(parsed && parsed.isValid());
+  return ok
+    ? ""
+    : `Enter a valid ${label.toLowerCase()} with country code (e.g. +91 9876543210).`;
 }
 
 export function validateCode(value: string, label = "Code"): ValidationResult {

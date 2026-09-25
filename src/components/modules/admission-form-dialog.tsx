@@ -11,6 +11,7 @@ import {
 import { StepForm } from "@/components/enterprise/step-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { useToast } from "@/components/ui/toast";
 import { UserPlus, ArrowRight, ArrowLeft, Check } from "lucide-react";
 
@@ -58,6 +59,7 @@ export function AdmissionFormDialog({
   const [isLoadingOptions, setIsLoadingOptions] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState("");
 
   const [formData, setFormData] = useState({
     applicationNumber: "",
@@ -133,6 +135,7 @@ export function AdmissionFormDialog({
         guardianPhone: "",
       });
     }
+    setPhoneError("");
     setCurrentStep(0);
 
     const loadOptions = async () => {
@@ -196,7 +199,10 @@ export function AdmissionFormDialog({
         next = onlyName(value, LIMITS.NAME_MAX);
         break;
       case "guardianPhone":
-        next = onlyDigits(value, LIMITS.PHONE_MAX);
+        next = onlyDigits(value, LIMITS.PHONE_INTL_MAX);
+        if (value.startsWith("+")) {
+          next = `+${next}`;
+        }
         break;
       default:
         next = value.slice(0, LIMITS.TEXT_MAX);
@@ -206,6 +212,10 @@ export function AdmissionFormDialog({
       ...current,
       [field]: next,
     }));
+
+    if (field === "guardianPhone") {
+      setPhoneError("");
+    }
   };
 
   const validateCurrentStep = () => {
@@ -282,14 +292,18 @@ export function AdmissionFormDialog({
 
       if (!formData.guardianPhone.trim()) {
         setError("Guardian phone is required.");
+        setPhoneError("Guardian phone is required.");
         return false;
       }
 
       const phoneError = validatePhone(formData.guardianPhone);
       if (phoneError) {
         setError(phoneError);
+        setPhoneError(phoneError);
         return false;
       }
+
+      setPhoneError("");
     }
 
     return true;
@@ -578,16 +592,23 @@ export function AdmissionFormDialog({
                   Guardian Phone *
                 </label>
 
-                <Input
-                  placeholder="9876543210"
+                <PhoneInput
                   value={formData.guardianPhone}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={LIMITS.PHONE_MAX}
-                  onChange={(event) =>
-                    updateField("guardianPhone", event.target.value)
+                  placeholder="9876543210"
+                  invalid={!!phoneError}
+                  onChange={(value) => updateField("guardianPhone", value)}
+                  onBlur={() =>
+                    setPhoneError(
+                      formData.guardianPhone.trim()
+                        ? validatePhone(formData.guardianPhone)
+                        : "",
+                    )
                   }
                 />
+
+                {phoneError && (
+                  <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+                )}
               </div>
             </div>
           )}

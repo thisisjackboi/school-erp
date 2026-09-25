@@ -8,12 +8,12 @@ import { UserSearch, Plus, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { useToast } from "@/components/ui/toast";
 
 import {
   LIMITS,
   firstError,
-  onlyDigits,
   onlyName,
   trimMax,
   validateMaxLength,
@@ -28,15 +28,19 @@ export default function VisitorsPage() {
   const [passes, setPasses] = useState(DUMMY_VISITOR_PASSES);
   const [visitorName, setVisitorName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [purpose, setPurpose] = useState("");
   const [personToMeet, setPersonToMeet] = useState("");
 
   const handleIssuePass = () => {
+    const phoneErrorMsg = phone.trim() ? validatePhone(phone) : "";
+    setPhoneError(phoneErrorMsg);
+
     const error = firstError(
       validateRequired(visitorName, "Visitor name"),
       validateName(visitorName, "Visitor name"),
       validateMaxLength(visitorName, "Visitor name", LIMITS.NAME_MAX),
-      ...(phone.trim() ? [validatePhone(phone)] : []),
+      phoneErrorMsg,
       validateMaxLength(purpose, "Purpose", LIMITS.TEXT_MAX),
       validateMaxLength(personToMeet, "Person to meet", LIMITS.NAME_MAX),
     );
@@ -48,7 +52,7 @@ export default function VisitorsPage() {
       id: `VIS-${Math.floor(100 + Math.random() * 900)}`,
       passNo: `VP-2026-${Math.floor(100 + Math.random() * 900)}`,
       visitorName,
-      phone: phone || "+91 98100 00000",
+      phone: phone || "+91 9810000000",
       purpose: purpose || "General Inquiry",
       personToMeet: personToMeet || "Receptionist",
       checkInTime: "11:30 AM",
@@ -100,7 +104,21 @@ export default function VisitorsPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="font-semibold block mb-1">Phone Number</label>
-              <Input inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 9876543210" maxLength={LIMITS.PHONE_MAX} value={phone} onChange={(e) => setPhone(onlyDigits(e.target.value, LIMITS.PHONE_MAX))} />
+              <PhoneInput
+                value={phone}
+                onChange={(value) => {
+                  setPhone(value);
+                  setPhoneError("");
+                }}
+                onBlur={() =>
+                  setPhoneError(phone.trim() ? validatePhone(phone) : "")
+                }
+                invalid={!!phoneError}
+                placeholder="e.g. 9876543210"
+              />
+              {phoneError && (
+                <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+              )}
             </div>
             <div>
               <label className="font-semibold block mb-1">Person / Dept to Meet</label>

@@ -9,6 +9,7 @@ import {
 } from "@/lib/api/employees.api";
 import { createUser } from "@/lib/api/users.api";
 import { getDesignations } from "@/lib/api/designations.api";
+import { PhoneInput } from "@/components/ui/phone-input";
 import type {
   Employee,
   EmployeeStatus,
@@ -86,6 +87,8 @@ export default function EmployeesPage() {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [form, setForm] = useState<EmployeeForm>(initialForm);
   const [error, setError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [userPhoneError, setUserPhoneError] = useState("");
 
   useEffect(() => {
     if (accessToken) {
@@ -123,6 +126,8 @@ export default function EmployeesPage() {
       dateOfJoining: new Date().toISOString().split("T")[0],
     });
     setError("");
+    setPhoneError("");
+    setUserPhoneError("");
     setShowModal(true);
   }
 
@@ -151,6 +156,8 @@ export default function EmployeesPage() {
       password: "",
     });
     setError("");
+    setPhoneError("");
+    setUserPhoneError("");
     setShowModal(true);
   }
 
@@ -163,6 +170,20 @@ export default function EmployeesPage() {
     setEditingEmployee(null);
     setForm(initialForm);
     setError("");
+    setPhoneError("");
+    setUserPhoneError("");
+  }
+
+  function handlePhoneChange(name: "phone" | "userPhone", value: string) {
+    if (name === "phone") {
+      setPhoneError("");
+    } else {
+      setUserPhoneError("");
+    }
+
+    handleChange({
+      target: { name, value },
+    } as React.ChangeEvent<HTMLInputElement>);
   }
 
   function handleChange(
@@ -184,7 +205,10 @@ export default function EmployeesPage() {
         break;
       case "phone":
       case "userPhone":
-        next = onlyDigits(value, LIMITS.PHONE_MAX);
+        next = onlyDigits(value, LIMITS.PHONE_INTL_MAX);
+        if (value.startsWith("+")) {
+          next = `+${next}`;
+        }
         break;
       case "username":
         next = onlyUsername(value, LIMITS.USERNAME_MAX);
@@ -214,6 +238,12 @@ export default function EmployeesPage() {
       return;
     }
 
+    const phoneErrorMsg = firstError(
+      validateRequired(form.phone, "Phone number"),
+      validatePhone(form.phone, "Phone number"),
+    );
+    setPhoneError(phoneErrorMsg);
+
     const validationError = firstError(
       validateRequired(form.employeeCode, "Employee code"),
       validateMaxLength(
@@ -224,8 +254,7 @@ export default function EmployeesPage() {
       validateRequired(form.firstName, "First name"),
       validateName(form.firstName, "First name"),
       validateName(form.lastName, "Last name"),
-      validateRequired(form.phone, "Phone number"),
-      validatePhone(form.phone, "Phone number"),
+      phoneErrorMsg,
       validateMaxLength(form.address, "Address", LIMITS.ADDRESS_MAX),
       validateMaxLength(form.email, "Email", LIMITS.EMAIL_MAX),
     );
@@ -256,9 +285,15 @@ export default function EmployeesPage() {
         return;
       }
 
-      if (form.userPhone.trim() && !validatePhone(form.userPhone)) {
-        setError(validatePhone(form.userPhone));
-        return;
+      if (form.userPhone.trim()) {
+        const userPhoneErrorMsg = validatePhone(form.userPhone);
+        setUserPhoneError(userPhoneErrorMsg);
+        if (userPhoneErrorMsg) {
+          setError(userPhoneErrorMsg);
+          return;
+        }
+      } else {
+        setUserPhoneError("");
       }
     }
 
@@ -609,16 +644,24 @@ export default function EmployeesPage() {
 
                 <label className="block">
                   <span className="text-sm font-medium">Phone</span>
-                  <input
-                    name="phone"
+                  <PhoneInput
                     value={form.phone}
-                    onChange={handleChange}
-                    required
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={LIMITS.PHONE_MAX}
-                    className="mt-1 w-full rounded-md border px-3 py-2"
+                    onChange={(value) => handlePhoneChange("phone", value)}
+                    onBlur={() =>
+                      setPhoneError(
+                        form.phone.trim()
+                          ? validatePhone(form.phone, "Phone number")
+                          : "",
+                      )
+                    }
+                    invalid={!!phoneError}
+                    className="mt-1"
                   />
+                  {phoneError && (
+                    <span className="mt-1 block text-xs text-red-600">
+                      {phoneError}
+                    </span>
+                  )}
                 </label>
 
                 <label className="block">
@@ -712,15 +755,26 @@ export default function EmployeesPage() {
                             Login Phone
                           </span>
 
-                          <input
-                            name="userPhone"
+                          <PhoneInput
                             value={form.userPhone}
-                            onChange={handleChange}
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            maxLength={LIMITS.PHONE_MAX}
-                            className="mt-1 w-full rounded-md border bg-white px-3 py-2"
+                            onChange={(value) =>
+                              handlePhoneChange("userPhone", value)
+                            }
+                            onBlur={() =>
+                              setUserPhoneError(
+                                form.userPhone.trim()
+                                  ? validatePhone(form.userPhone)
+                                  : "",
+                              )
+                            }
+                            invalid={!!userPhoneError}
+                            className="mt-1"
                           />
+                          {userPhoneError && (
+                            <span className="mt-1 block text-xs text-red-600">
+                              {userPhoneError}
+                            </span>
+                          )}
                         </label>
 
                         <label className="block">
