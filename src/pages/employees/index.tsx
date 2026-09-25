@@ -9,6 +9,7 @@ import {
 } from "@/lib/api/employees.api";
 import { createUser } from "@/lib/api/users.api";
 import { getDesignations } from "@/lib/api/designations.api";
+import { PhoneInput } from "@/components/ui/phone-input";
 import type {
   Employee,
   EmployeeStatus,
@@ -165,6 +166,12 @@ export default function EmployeesPage() {
     setError("");
   }
 
+  function handlePhoneChange(name: "phone" | "userPhone", value: string) {
+    handleChange({
+      target: { name, value },
+    } as React.ChangeEvent<HTMLInputElement>);
+  }
+
   function handleChange(
     event: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -184,7 +191,10 @@ export default function EmployeesPage() {
         break;
       case "phone":
       case "userPhone":
-        next = onlyDigits(value, LIMITS.PHONE_MAX);
+        next = onlyDigits(value, LIMITS.PHONE_INTL_MAX);
+        if (value.startsWith("+")) {
+          next = `+${next}`;
+        }
         break;
       case "username":
         next = onlyUsername(value, LIMITS.USERNAME_MAX);
@@ -609,15 +619,10 @@ export default function EmployeesPage() {
 
                 <label className="block">
                   <span className="text-sm font-medium">Phone</span>
-                  <input
-                    name="phone"
+                  <PhoneInput
                     value={form.phone}
-                    onChange={handleChange}
-                    required
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={LIMITS.PHONE_MAX}
-                    className="mt-1 w-full rounded-md border px-3 py-2"
+                    onChange={(value) => handlePhoneChange("phone", value)}
+                    className="mt-1"
                   />
                 </label>
 
@@ -712,14 +717,12 @@ export default function EmployeesPage() {
                             Login Phone
                           </span>
 
-                          <input
-                            name="userPhone"
+                          <PhoneInput
                             value={form.userPhone}
-                            onChange={handleChange}
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            maxLength={LIMITS.PHONE_MAX}
-                            className="mt-1 w-full rounded-md border bg-white px-3 py-2"
+                            onChange={(value) =>
+                              handlePhoneChange("userPhone", value)
+                            }
+                            className="mt-1"
                           />
                         </label>
 

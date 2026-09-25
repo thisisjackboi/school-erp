@@ -6,6 +6,7 @@ import { Pencil, ShieldCheck, UserPlus, UserRound, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 
 import { useAuth } from "@/lib/auth/auth-context";
 import { PermissionGate } from "@/components/auth/permission-gate";
@@ -22,7 +23,6 @@ import type { RbacUser, Role } from "@/lib/types/rbac";
 import {
   LIMITS,
   firstError,
-  onlyDigits,
   onlyUsername,
   trimMax,
   validateEmail,
@@ -450,23 +450,17 @@ export default function UsersPage() {
                     Phone
                   </label>
 
-                  <Input
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                  <PhoneInput
                     value={form.phone}
-                    onChange={(event) =>
+                    onChange={(value) =>
                       setForm((current) => ({
                         ...current,
-                        phone: onlyDigits(
-                          event.target.value,
-                          LIMITS.PHONE_MAX,
-                        ),
+                        phone: value,
                       }))
                     }
                     placeholder="Enter phone"
-                    maxLength={LIMITS.PHONE_MAX}
                     disabled={creating}
-                    className="text-xs"
+                    className="mt-0.5"
                   />
                 </div>
 

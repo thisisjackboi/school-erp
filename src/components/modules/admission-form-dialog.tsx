@@ -11,6 +11,7 @@ import {
 import { StepForm } from "@/components/enterprise/step-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { useToast } from "@/components/ui/toast";
 import { UserPlus, ArrowRight, ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
 
@@ -196,7 +197,10 @@ export function AdmissionFormDialog({
         next = onlyName(value, LIMITS.NAME_MAX);
         break;
       case "guardianPhone":
-        next = onlyDigits(value, LIMITS.PHONE_MAX);
+        next = onlyDigits(value, LIMITS.PHONE_INTL_MAX);
+        if (value.startsWith("+")) {
+          next = `+${next}`;
+        }
         break;
       default:
         next = value.slice(0, LIMITS.TEXT_MAX);
@@ -596,15 +600,10 @@ export function AdmissionFormDialog({
                   Guardian Phone *
                 </label>
 
-                <Input
-                  placeholder="9876543210"
+                <PhoneInput
                   value={formData.guardianPhone}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={LIMITS.PHONE_MAX}
-                  onChange={(event) =>
-                    updateField("guardianPhone", event.target.value)
-                  }
+                  placeholder="9876543210"
+                  onChange={(value) => updateField("guardianPhone", value)}
                 />
               </div>
             </div>

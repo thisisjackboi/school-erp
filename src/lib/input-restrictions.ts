@@ -86,8 +86,13 @@ export function validateEmail(value: string, label = "Email"): ValidationResult 
   return REGEX.EMAIL.test(value.trim()) ? "" : `Enter a valid ${label.toLowerCase()} address (e.g. name@school.edu).`;
 }
 
+export const REGEX_PHONE_INTL = /^\+\d{8,15}$/;
+
 export function validatePhone(value: string, label = "Phone number"): ValidationResult {
-  return REGEX.PHONE_10.test(value.trim()) ? "" : `Enter a valid 10-digit ${label.toLowerCase()}.`;
+  const v = value.trim();
+  // Accept legacy 10-digit national numbers OR full international (E.164: +<dial><number>).
+  const ok = REGEX.PHONE_10.test(v) || REGEX_PHONE_INTL.test(v);
+  return ok ? "" : `Enter a valid ${label.toLowerCase()} with country code (e.g. +91 9876543210).`;
 }
 
 export function validateCode(value: string, label = "Code"): ValidationResult {

@@ -7,6 +7,7 @@ import { useRole } from "@/lib/permissions";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { useToast } from "@/components/ui/toast";
 import { User, Mail, Shield, Save } from "lucide-react";
 
@@ -65,7 +66,12 @@ export default function ProfilePage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="font-semibold block mb-1">Phone Number</label>
-                <Input readOnly inputMode="tel" defaultValue={user?.phone ?? ""} maxLength={15} placeholder="Enter phone" />
+                <PhoneInput
+                value={user?.phone ?? ""}
+                onChange={() => {}}
+                disabled
+                placeholder="Enter phone"
+              />
               </div>
               <div>
                 <label className="font-semibold block mb-1">Assigned Role</label>
