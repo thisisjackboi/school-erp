@@ -385,46 +385,46 @@ export default function ReportCardsPage() {
               </div>
             ) : (
               <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-100 dark:bg-slate-800 font-semibold border-b">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b bg-slate-100/70 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
                     <tr>
-                      <th className="p-3 w-12">#</th>
-                      <th className="p-3">Roll No</th>
-                      <th className="p-3">Student Name</th>
-                      <th className="p-3">Class & Sec</th>
-                      <th className="p-3 text-right">Percentage</th>
-                      <th className="p-3 text-center">Grade</th>
-                      <th className="p-3 text-center">Result Status</th>
-                      <th className="p-3 text-right">Actions</th>
+                      <th className="px-6 py-3.5 font-semibold w-12">#</th>
+                      <th className="px-6 py-3.5 font-semibold">Roll No</th>
+                      <th className="px-6 py-3.5 font-semibold">Student Name</th>
+                      <th className="px-6 py-3.5 font-semibold">Class & Sec</th>
+                      <th className="px-6 py-3.5 text-right font-semibold">Percentage</th>
+                      <th className="px-6 py-3.5 text-center font-semibold">Grade</th>
+                      <th className="px-6 py-3.5 text-center font-semibold">Result Status</th>
+                      <th className="px-6 py-3.5 text-right font-semibold">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                     {studentResults.map((row) => (
                       <tr
                         key={row.student.enrollmentId}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-900"
+                        className="hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-800/50"
                       >
-                        <td className="p-3 text-muted-foreground">{row.rank || "-"}</td>
-                        <td className="p-3 font-semibold">{row.student.rollNumber || "-"}</td>
-                        <td className="p-3 font-bold text-slate-900 dark:text-slate-100">
+                        <td className="px-6 py-4 text-muted-foreground">{row.rank || "-"}</td>
+                        <td className="px-6 py-4 font-semibold font-mono text-slate-700 dark:text-slate-300">{row.student.rollNumber || "-"}</td>
+                        <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">
                           {row.student.firstName} {row.student.lastName}
                         </td>
-                        <td className="p-3">
+                        <td className="px-6 py-4 text-slate-700 dark:text-slate-300">
                           {selectedClassName} - {selectedSectionName}
                         </td>
-                        <td className="p-3 text-right font-semibold tabular-nums">
+                        <td className="px-6 py-4 text-right font-semibold tabular-nums text-slate-700 dark:text-slate-300">
                           {row.totalMax > 0 ? `${row.percentage.toFixed(2)}%` : "—"}
                         </td>
-                        <td className="p-3 text-center">
+                        <td className="px-6 py-4 text-center">
                           {row.grade ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                               {row.grade.gradeName}
                             </span>
                           ) : (
                             "—"
                           )}
                         </td>
-                        <td className="p-3 text-center">
+                        <td className="px-6 py-4 text-center">
                           <StatusChip
                             status={
                               row.result?.resultStatus?.toLowerCase() ||
@@ -432,7 +432,7 @@ export default function ReportCardsPage() {
                             }
                           />
                         </td>
-                        <td className="p-3 text-right">
+                        <td className="px-6 py-4 text-right">
                           <Button
                             size="sm"
                             variant="outline"

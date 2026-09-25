@@ -375,21 +375,21 @@ export default function EmployeesPage() {
       )}
 
       <div className="overflow-x-auto rounded-lg border bg-white">
-        <table className="w-full text-sm">
-          <thead className="border-b bg-gray-50">
+        <table className="w-full text-left text-xs">
+          <thead className="border-b bg-slate-100/70 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
             <tr>
-              <th className="px-4 py-3 text-left">Employee Code</th>
-              <th className="px-4 py-3 text-left">Name</th>
-              <th className="px-4 py-3 text-left">Login</th>
-              <th className="px-4 py-3 text-left">Designation</th>
-              <th className="px-4 py-3 text-left">Employment Type</th>
-              <th className="px-4 py-3 text-left">Phone</th>
-              <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+              <th className="px-6 py-3.5 text-left font-semibold">Employee Code</th>
+              <th className="px-6 py-3.5 text-left font-semibold">Name</th>
+              <th className="px-6 py-3.5 text-left font-semibold">Login</th>
+              <th className="px-6 py-3.5 text-left font-semibold">Designation</th>
+              <th className="px-6 py-3.5 text-left font-semibold">Employment Type</th>
+              <th className="px-6 py-3.5 text-left font-semibold">Phone</th>
+              <th className="px-6 py-3.5 text-left font-semibold">Status</th>
+              <th className="px-6 py-3.5 text-right font-semibold">Actions</th>
             </tr>
           </thead>
 
-          <tbody>
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
             {loading ? (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
@@ -404,14 +404,14 @@ export default function EmployeesPage() {
               </tr>
             ) : (
               employees.map((employee) => (
-                <tr key={employee.id} className="border-b last:border-b-0">
-                  <td className="px-4 py-3">{employee.employeeCode}</td>
+                <tr key={employee.id} className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/50">
+                  <td className="px-6 py-4">{employee.employeeCode}</td>
 
-                  <td className="px-4 py-3">
+                  <td className="px-6 py-4">
                     {employee.firstName} {employee.lastName}
                   </td>
 
-                  <td className="px-4 py-3">
+                  <td className="px-6 py-4">
                     {employee.user ? (
                       <span className="inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
                         Login Enabled
@@ -423,18 +423,18 @@ export default function EmployeesPage() {
                     )}
                   </td>
 
-                  <td className="px-4 py-3">
+                  <td className="px-6 py-4">
                     {employee.designation?.title ||
                       getDesignationName(employee.designationId)}
                   </td>
 
-                  <td className="px-4 py-3">{employee.employmentType}</td>
+                  <td className="px-6 py-4">{employee.employmentType}</td>
 
-                  <td className="px-4 py-3">{employee.phone}</td>
+                  <td className="px-6 py-4">{employee.phone}</td>
 
-                  <td className="px-4 py-3">{employee.status}</td>
+                  <td className="px-6 py-4">{employee.status}</td>
 
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-6 py-4 text-right">
                     <button
                       type="button"
                       onClick={() => setViewEmployee(employee)}

@@ -638,11 +638,11 @@ export default function AttendancePage() {
               <table className="w-full text-left text-xs">
                 <thead className="border-b bg-slate-100/70 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
                   <tr>
-                    <th className="px-6 py-3 font-semibold w-16 text-center">Roll No</th>
-                    <th className="px-6 py-3 font-semibold">Student Name</th>
-                    <th className="px-6 py-3 font-semibold">Admission No</th>
-                    <th className="px-6 py-3 font-semibold">Attendance Choice</th>
-                    <th className="px-6 py-3 font-semibold">Remarks / Note</th>
+                    <th className="px-6 py-3.5 font-semibold w-16 text-center">Roll No</th>
+                    <th className="px-6 py-3.5 font-semibold">Student Name</th>
+                    <th className="px-6 py-3.5 font-semibold">Admission No</th>
+                    <th className="px-6 py-3.5 font-semibold">Attendance Choice</th>
+                    <th className="px-6 py-3.5 font-semibold">Remarks / Note</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -652,12 +652,12 @@ export default function AttendancePage() {
                       className="hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-800/50"
                     >
                       {/* Roll Number */}
-                      <td className="px-6 py-3.5 text-center font-bold font-mono text-slate-800 dark:text-slate-200">
+                      <td className="px-6 py-4 text-center font-bold font-mono text-slate-800 dark:text-slate-200">
                         {item.rollNumber}
                       </td>
 
                       {/* Student Name */}
-                      <td className="px-6 py-3.5">
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                             {item.studentName.charAt(0)}
@@ -669,12 +669,12 @@ export default function AttendancePage() {
                       </td>
 
                       {/* Admission Number */}
-                      <td className="px-6 py-3.5 text-slate-600 dark:text-slate-400 font-mono text-[11px]">
+                      <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-mono text-[11px]">
                         {item.admissionNumber}
                       </td>
 
                       {/* Compact Attendance Choice Buttons */}
-                      <td className="px-6 py-3.5">
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <button
                             type="button"
@@ -764,7 +764,7 @@ export default function AttendancePage() {
                       </td>
 
                       {/* Remarks Note */}
-                      <td className="px-6 py-3.5">
+                      <td className="px-6 py-4">
                         <input
                           type="text"
                           placeholder="Optional reason..."

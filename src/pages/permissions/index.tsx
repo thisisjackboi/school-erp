@@ -456,22 +456,22 @@ export default function PermissionsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-slate-50 dark:bg-slate-900">
-                    <th className="px-4 py-3 text-left text-xs font-semibold">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b bg-slate-100/70 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+                  <tr>
+                    <th className="px-6 py-3.5 text-left font-semibold">
                       Permission Code
                     </th>
 
-                    <th className="px-4 py-3 text-left text-xs font-semibold">
+                    <th className="px-6 py-3.5 text-left font-semibold">
                       Module
                     </th>
 
-                    <th className="px-4 py-3 text-left text-xs font-semibold">
+                    <th className="px-6 py-3.5 text-left font-semibold">
                       Description
                     </th>
 
-                    <th className="w-[110px] px-4 py-3 text-right text-xs font-semibold">
+                    <th className="w-[110px] px-6 py-3.5 text-right font-semibold">
                       Actions
                     </th>
                   </tr>
@@ -482,26 +482,26 @@ export default function PermissionsPage() {
                     (permission) => (
                       <tr
                         key={permission.id}
-                        className="border-b last:border-0 hover:bg-slate-50/70 dark:hover:bg-slate-900/50"
+                        className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/50"
                       >
-                        <td className="px-4 py-3">
+                        <td className="px-6 py-4">
                           <code className="rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-800 dark:bg-slate-800 dark:text-slate-200">
                             {permission.code}
                           </code>
                         </td>
 
-                        <td className="px-4 py-3">
+                        <td className="px-6 py-4">
                           <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
                             {permission.module}
                           </span>
                         </td>
 
-                        <td className="max-w-md px-4 py-3 text-xs text-muted-foreground">
+                        <td className="max-w-md px-6 py-4 text-xs text-muted-foreground">
                           {permission.description ||
                             "—"}
                         </td>
 
-                        <td className="px-4 py-3">
+                        <td className="px-6 py-4">
                           <div className="flex justify-end gap-1">
                             <Button
                               type="button"

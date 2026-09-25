@@ -253,18 +253,18 @@ export default function DesignationsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-slate-50 dark:bg-slate-900">
-                    <th className="px-4 py-3 text-left text-xs font-semibold">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b bg-slate-100/70 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+                  <tr>
+                    <th className="px-6 py-3.5 text-left font-semibold">
                       Designation
                     </th>
 
-                    <th className="px-4 py-3 text-left text-xs font-semibold">
+                    <th className="px-6 py-3.5 text-left font-semibold">
                       Category
                     </th>
 
-                    <th className="w-[90px] px-4 py-3 text-right text-xs font-semibold">
+                    <th className="w-[90px] px-6 py-3.5 text-right font-semibold">
                       Action
                     </th>
                   </tr>
@@ -274,16 +274,16 @@ export default function DesignationsPage() {
                   {designations.map((designation) => (
                     <tr
                       key={designation.id}
-                      className="border-b last:border-0 hover:bg-slate-50/70 dark:hover:bg-slate-900/50"
+                      className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/50"
                     >
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="rounded-md bg-blue-50 p-2 text-blue-600 dark:bg-blue-950/40">
                             <BriefcaseBusiness className="h-4 w-4" />
                           </div>
 
                           <div>
-                            <p className="text-sm font-medium">
+                            <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
                               {designation.title}
                             </p>
 
@@ -294,7 +294,7 @@ export default function DesignationsPage() {
                         </div>
                       </td>
 
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-4">
                         <span
                           className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${getCategoryBadgeClass(
                             designation.category,
@@ -304,7 +304,7 @@ export default function DesignationsPage() {
                         </span>
                       </td>
 
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-4">
                         <div className="flex justify-end">
                           <PermissionGate permission="designations.update">
                           <Button

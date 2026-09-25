@@ -35,30 +35,30 @@ export default function LeavePage() {
         <CardHeader><CardTitle className="text-sm font-bold">Leave Applications Register</CardTitle></CardHeader>
         <CardContent className="space-y-3 text-xs">
           <div className="border rounded-lg overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-100 dark:bg-slate-800 font-semibold border-b">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="border-b bg-slate-100/70 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
                 <tr>
-                  <th className="p-3">Applicant Name</th>
-                  <th className="p-3">Role / Dept</th>
-                  <th className="p-3">Leave Type</th>
-                  <th className="p-3">Dates</th>
-                  <th className="p-3">Days</th>
-                  <th className="p-3">Reason</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3 text-right">Actions</th>
+                  <th className="px-6 py-3.5 font-semibold">Applicant Name</th>
+                  <th className="px-6 py-3.5 font-semibold">Role / Dept</th>
+                  <th className="px-6 py-3.5 font-semibold">Leave Type</th>
+                  <th className="px-6 py-3.5 font-semibold">Dates</th>
+                  <th className="px-6 py-3.5 font-semibold">Days</th>
+                  <th className="px-6 py-3.5 font-semibold">Reason</th>
+                  <th className="px-6 py-3.5 font-semibold">Status</th>
+                  <th className="px-6 py-3.5 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {leaves.map((l) => (
-                  <tr key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-900">
-                    <td className="p-3 font-bold text-slate-900 dark:text-slate-100">{l.applicantName}</td>
-                    <td className="p-3">{l.role}</td>
-                    <td className="p-3 font-semibold">{l.leaveType}</td>
-                    <td className="p-3">{l.startDate} to {l.endDate}</td>
-                    <td className="p-3 font-bold">{l.days}</td>
-                    <td className="p-3 text-muted-foreground">{l.reason}</td>
-                    <td className="p-3"><StatusChip status={l.status} /></td>
-                    <td className="p-3 text-right space-x-1">
+                  <tr key={l.id} className="hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-800/50">
+                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">{l.applicantName}</td>
+                    <td className="px-6 py-4 text-slate-700 dark:text-slate-300">{l.role}</td>
+                    <td className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300">{l.leaveType}</td>
+                    <td className="px-6 py-4 text-slate-700 dark:text-slate-300">{l.startDate} to {l.endDate}</td>
+                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">{l.days}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{l.reason}</td>
+                    <td className="px-6 py-4"><StatusChip status={l.status} /></td>
+                    <td className="px-6 py-4 text-right space-x-1">
                       {l.status === "Pending" && (
                         <>
                           <Button size="sm" onClick={() => handleAction(l.id, "Approved")} className="h-7 text-[11px] bg-emerald-600">

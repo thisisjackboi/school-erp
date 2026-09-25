@@ -36,24 +36,24 @@ export default function FinancePage() {
         <CardHeader><CardTitle className="text-sm font-bold">Recent Financial Transactions</CardTitle></CardHeader>
         <CardContent className="space-y-3 text-xs">
           <div className="border rounded-lg overflow-hidden">
-            <table className="w-full text-left">
-              <thead className="bg-slate-100 dark:bg-slate-800 font-semibold border-b">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b bg-slate-100/70 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
                 <tr>
-                  <th className="p-3">Reference No</th>
-                  <th className="p-3">Title / Description</th>
-                  <th className="p-3">Category</th>
-                  <th className="p-3">Date</th>
-                  <th className="p-3 text-right">Amount</th>
+                  <th className="px-6 py-3.5 font-semibold">Reference No</th>
+                  <th className="px-6 py-3.5 font-semibold">Title / Description</th>
+                  <th className="px-6 py-3.5 font-semibold">Category</th>
+                  <th className="px-6 py-3.5 font-semibold">Date</th>
+                  <th className="px-6 py-3.5 text-right font-semibold">Amount</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {transactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-900">
-                    <td className="p-3 font-mono">{tx.reference}</td>
-                    <td className="p-3 font-bold text-slate-900 dark:text-slate-100">{tx.title}</td>
-                    <td className="p-3"><span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-semibold">{tx.category}</span></td>
-                    <td className="p-3">{tx.date}</td>
-                    <td className={`p-3 text-right font-bold ${tx.type === "Income" ? "text-emerald-600" : "text-red-600"}`}>
+                  <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-800/50">
+                    <td className="px-6 py-4 font-mono text-[11px] text-muted-foreground">{tx.reference}</td>
+                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">{tx.title}</td>
+                    <td className="px-6 py-4"><span className="px-2 py-0.5 rounded bg-slate-100 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">{tx.category}</span></td>
+                    <td className="px-6 py-4">{tx.date}</td>
+                    <td className={`px-6 py-4 text-right font-bold ${tx.type === "Income" ? "text-emerald-600" : "text-red-600"}`}>
                       {tx.type === "Income" ? "+" : "-"}{formatCurrency(tx.amount)}
                     </td>
                   </tr>

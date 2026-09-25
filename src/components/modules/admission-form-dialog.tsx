@@ -12,7 +12,7 @@ import { StepForm } from "@/components/enterprise/step-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { UserPlus, ArrowRight, ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
+import { UserPlus, ArrowRight, ArrowLeft, Check } from "lucide-react";
 
 import { useAuth } from "@/lib/auth/auth-context";
 import { toDateInputValue } from "@/lib/dates";
@@ -433,36 +433,18 @@ export function AdmissionFormDialog({
                   <label className="font-semibold block">
                     Application Number *
                   </label>
-                  {!isEditMode && (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium">
-                      <Sparkles className="h-3 w-3" /> Auto-Generated
-                    </span>
-                  )}
                 </div>
 
-                <div className="relative flex items-center">
-                  <Input
-                    placeholder="Auto-generated e.g. APP-2026-0001"
-                    value={formData.applicationNumber}
-                    disabled={isEditMode}
-                    maxLength={20}
-                    onChange={(event) =>
-                      updateField("applicationNumber", event.target.value)
-                    }
-                    className={!isEditMode ? "pr-8" : ""}
-                  />
-                  {!isEditMode && (
-                    <button
-                      type="button"
-                      onClick={fetchNextAppNumber}
-                      disabled={loadingAppNo}
-                      title="Refresh next auto-generated application number"
-                      className="absolute right-2 text-slate-400 hover:text-blue-600 disabled:opacity-50"
-                    >
-                      <RefreshCw className={`h-3.5 w-3.5 ${loadingAppNo ? "animate-spin" : ""}`} />
-                    </button>
-                  )}
-                </div>
+                <Input
+                  placeholder="Auto-generated e.g. APP-2026-0001"
+                  value={formData.applicationNumber}
+                  disabled={isEditMode || loadingAppNo}
+                  maxLength={20}
+                  onChange={(event) =>
+                    updateField("applicationNumber", event.target.value)
+                  }
+                  className={!isEditMode ? "disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500" : ""}
+                />
               </div>
 
               <div>

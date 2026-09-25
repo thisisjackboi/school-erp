@@ -325,25 +325,25 @@ export default function UsersPage() {
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full text-sm">
-                <thead className="border-b bg-muted/40">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b bg-slate-100/70 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs">Username</th>
-                    <th className="px-4 py-3 text-left text-xs">Email</th>
-                    <th className="px-4 py-3 text-left text-xs">Phone</th>
-                    <th className="px-4 py-3 text-left text-xs">Type</th>
-                    <th className="px-4 py-3 text-left text-xs">Status</th>
-                    <th className="px-4 py-3 text-left text-xs">Roles</th>
-                    <th className="px-4 py-3 text-right text-xs">Action</th>
+                    <th className="px-6 py-3.5 text-left font-semibold">Username</th>
+                    <th className="px-6 py-3.5 text-left font-semibold">Email</th>
+                    <th className="px-6 py-3.5 text-left font-semibold">Phone</th>
+                    <th className="px-6 py-3.5 text-left font-semibold">Type</th>
+                    <th className="px-6 py-3.5 text-left font-semibold">Status</th>
+                    <th className="px-6 py-3.5 text-left font-semibold">Roles</th>
+                    <th className="px-6 py-3.5 text-right font-semibold">Action</th>
                   </tr>
                 </thead>
 
-                <tbody>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   {filteredUsers.length === 0 ? (
                     <tr>
                       <td
                         colSpan={7}
-                        className="px-4 py-10 text-center text-sm text-muted-foreground"
+                        className="px-6 py-10 text-center text-xs text-muted-foreground"
                       >
                         No users found.
                       </td>
@@ -715,25 +715,25 @@ function UserTableRow({ user, accessToken, onEdit }: UserTableRowProps) {
   }, [user.id, accessToken]);
 
   return (
-    <tr className="border-b last:border-0">
-      <td className="px-4 py-3">
+    <tr className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/50">
+      <td className="px-6 py-4">
         <div className="flex items-center gap-2">
           <UserRound className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{user.username}</span>
+          <span className="font-bold text-slate-900 dark:text-slate-100">{user.username}</span>
         </div>
       </td>
 
-      <td className="px-4 py-3 text-muted-foreground">{user.email || "-"}</td>
+      <td className="px-6 py-4 text-muted-foreground">{user.email || "-"}</td>
 
-      <td className="px-4 py-3 text-muted-foreground">{user.phone || "-"}</td>
+      <td className="px-6 py-4 text-muted-foreground">{user.phone || "-"}</td>
 
-      <td className="px-4 py-3">
+      <td className="px-6 py-4">
         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-medium">
           {user.userType}
         </span>
       </td>
 
-      <td className="px-4 py-3">
+      <td className="px-6 py-4">
         {user.isLocked ? (
           <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-medium text-red-700">
             Locked
@@ -749,7 +749,7 @@ function UserTableRow({ user, accessToken, onEdit }: UserTableRowProps) {
         )}
       </td>
 
-      <td className="px-4 py-3">
+      <td className="px-6 py-4">
         {loading ? (
           <span className="text-xs text-muted-foreground">Loading...</span>
         ) : userRoles.length === 0 ? (
@@ -768,7 +768,7 @@ function UserTableRow({ user, accessToken, onEdit }: UserTableRowProps) {
         )}
       </td>
 
-      <td className="px-4 py-3 text-right">
+      <td className="px-6 py-4 text-right">
         <PermissionGate permission="users.update">
           <Button
             type="button"

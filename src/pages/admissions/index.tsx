@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
-import { Eye, Pencil, Plus, RefreshCw, ShieldCheck, Sparkles, Trash2, UserCheck, X } from "lucide-react";
+import { Eye, Pencil, Plus, RefreshCw, ShieldCheck, Trash2, UserCheck, X } from "lucide-react";
 
 import {
   LIMITS,
@@ -775,9 +775,6 @@ export default function AdmissionsPage() {
                 <label className="font-semibold block">
                   Enrollment / Admission No.
                 </label>
-                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                  <Sparkles className="h-3 w-3" /> Auto
-                </span>
               </div>
               <Input
                 placeholder="e.g. STD-2026-0001"
@@ -788,11 +785,9 @@ export default function AdmissionsPage() {
                     admissionNumber: e.target.value,
                   }))
                 }
-                disabled={converting || loadingConversionNumbers}
+                disabled
+                className="disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500"
               />
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                Auto-generated unique student enrollment number.
-              </p>
             </div>
 
             <div>
@@ -800,9 +795,6 @@ export default function AdmissionsPage() {
                 <label className="font-semibold block">
                   Section Roll Number
                 </label>
-                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                  <Sparkles className="h-3 w-3" /> Auto
-                </span>
               </div>
               <Input
                 placeholder="e.g. 1"
@@ -813,7 +805,8 @@ export default function AdmissionsPage() {
                     rollNumber: e.target.value,
                   }))
                 }
-                disabled={converting || loadingConversionNumbers}
+                disabled
+                className="disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500"
               />
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 Sequential roll number in section.
