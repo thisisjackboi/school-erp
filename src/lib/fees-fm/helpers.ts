@@ -15,6 +15,10 @@ export const PAYMENT_MODES: { value: string; label: string }[] = [
 
 export const DEFAULT_GRACE_DAYS = 7;
 
+export function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
 export function monthKeyOf(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }

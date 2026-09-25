@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { ROLES, MODULE_ROUTES } from "@/lib/permissions";
+import { useRole } from "@/lib/permissions";
 import { Settings, Save, ShieldCheck, School } from "lucide-react";
 
 import {
@@ -19,6 +19,7 @@ import {
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const { userRoles, userPermissions, activeRoleName } = useRole();
   const [schoolName, setSchoolName] = useState("PrismaEd+ Senior Secondary School");
   const [schoolCode, setSchoolCode] = useState("CBSE-54109");
   const [phone, setPhone] = useState("+91 11 2612 3456");
@@ -87,18 +88,39 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle className="text-sm font-bold flex items-center space-x-2">
               <ShieldCheck className="h-4 w-4 text-emerald-600" />
-              <span>Role Permissions Matrix Summary</span>
+              <span>My Role & Permissions</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-xs">
-            <p className="text-muted-foreground">The ERP enforces strict frontend permission scoping across 14 user roles.</p>
-            <div className="border rounded-lg max-h-56 overflow-y-auto p-2 space-y-2 bg-slate-50 dark:bg-slate-900">
-              {ROLES.map((r) => (
-                <div key={r.id} className="p-2 rounded bg-card border flex items-center justify-between">
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{r.name}</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded ${r.badgeColor}`}>{r.id}</span>
+            <p className="text-muted-foreground">
+              Access is driven by the permissions assigned to your role in the database.
+            </p>
+
+            <div className="flex items-center gap-2 rounded-lg border bg-slate-50 dark:bg-slate-900 px-3 py-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+              <span className="font-bold text-slate-800 dark:text-slate-200">
+                {activeRoleName || "No role assigned"}
+              </span>
+            </div>
+
+            <div className="border rounded-lg max-h-56 overflow-y-auto p-2 space-y-1.5 bg-slate-50 dark:bg-slate-900">
+              {(userPermissions.length > 0
+                ? userPermissions.map((p) => p.code)
+                : []
+              ).map((code) => (
+                <div
+                  key={code}
+                  className="px-2 py-1 rounded bg-card border text-[11px] font-medium text-slate-700 dark:text-slate-300"
+                >
+                  {code}
                 </div>
               ))}
+              {userPermissions.length === 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  No permissions loaded. Roles assigned:{" "}
+                  {userRoles.map((r) => r.name).join(", ") || "None"}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

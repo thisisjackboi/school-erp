@@ -7,7 +7,7 @@ import { ModuleNav } from "@/components/fees/module-nav";
 import { cn } from "@/lib/utils";
 
 function FeeModuleShell() {
-  const { loading, reloading, session } = useFees();
+  const { loading, reloading, session, error } = useFees();
   const { role, canManage } = useFeeAccess();
 
   if (loading) {
@@ -42,6 +42,12 @@ function FeeModuleShell() {
           </div>
         </div>
       </div>
+
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+          Failed to load fee data: {error}
+        </div>
+      )}
 
       {reloading && (
         <div className="flex items-center gap-2 text-xs text-blue-600">

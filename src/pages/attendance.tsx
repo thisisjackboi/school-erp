@@ -3,18 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Calendar,
-  Clock,
   UserCheck,
   CheckCircle2,
   AlertCircle,
-  ChevronLeft,
-  ChevronRight,
   Search,
   School,
   CalendarDays,
   UserRound,
-  Sparkles,
-  BookOpen,
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +20,6 @@ import { getAcademicSessions } from "@/lib/api/academic-sessions.api";
 import { getClasses } from "@/lib/api/classes.api";
 import { getSections } from "@/lib/api/sections.api";
 import { getStudents } from "@/lib/api/students.api";
-import { getPeriods, getTimetableSlots } from "@/lib/api/timetable.api";
 import {
   getStudentAttendance,
   bulkMarkStudentAttendance,
@@ -35,7 +29,6 @@ import type { AcademicSession } from "@/lib/types/academic-session";
 import type { SchoolClass } from "@/lib/types/class";
 import type { Section } from "@/lib/types/section";
 import type { StudentRecord } from "@/lib/types/student";
-import type { Period, TimetableSlot } from "@/lib/types/timetable";
 import type { AttendanceStatus, StudentAttendance } from "@/lib/types/student-attendance";
 
 interface LocalStudentAttendanceState {
@@ -62,8 +55,6 @@ export default function AttendancePage() {
   const [academicSessions, setAcademicSessions] = useState<AcademicSession[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
-  const [periods, setPeriods] = useState<Period[]>([]);
-  const [timetableSlots, setTimetableSlots] = useState<TimetableSlot[]>([]);
   const [students, setStudents] = useState<StudentRecord[]>([]);
 
   // Selection States
@@ -73,7 +64,6 @@ export default function AttendancePage() {
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split("T")[0],
   );
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
 
   // Attendance Sheet State
   const [studentAttendanceList, setStudentAttendanceList] = useState<
@@ -98,20 +88,15 @@ export default function AttendancePage() {
       setError(null);
 
       try {
-        const [sessionData, classData, sectionData, periodData, slotsData] =
-          await Promise.all([
-            getAcademicSessions(accessToken),
-            getClasses(accessToken),
-            getSections(accessToken),
-            getPeriods(accessToken).catch(() => []),
-            getTimetableSlots(accessToken).catch(() => []),
-          ]);
+        const [sessionData, classData, sectionData] = await Promise.all([
+          getAcademicSessions(accessToken).catch(() => []),
+          getClasses(accessToken).catch(() => []),
+          getSections(accessToken).catch(() => []),
+        ]);
 
-        setAcademicSessions(sessionData);
-        setClasses(classData);
-        setSections(sectionData);
-        setPeriods(periodData.sort((a, b) => a.sortOrder - b.sortOrder));
-        setTimetableSlots(slotsData);
+        setAcademicSessions(sessionData || []);
+        setClasses(classData || []);
+        setSections(sectionData || []);
 
         // Auto-select current session
         const currentSession =
@@ -159,66 +144,6 @@ export default function AttendancePage() {
     });
   }, [sections, selectedClassId, selectedSessionId]);
 
-  // Available periods (fallback to standard period list if no slots exist)
-  const availablePeriods = useMemo(() => {
-    if (periods.length > 0) return periods;
-    // Default standard school period fallbacks if database table is empty
-    return [
-      {
-        id: "p1",
-        name: "Period 1",
-        startTime: "08:00",
-        endTime: "08:45",
-        sortOrder: 1,
-        createdAt: "",
-        updatedAt: "",
-      },
-      {
-        id: "p2",
-        name: "Period 2",
-        startTime: "08:45",
-        endTime: "09:30",
-        sortOrder: 2,
-        createdAt: "",
-        updatedAt: "",
-      },
-      {
-        id: "p3",
-        name: "Period 3",
-        startTime: "09:30",
-        endTime: "10:15",
-        sortOrder: 3,
-        createdAt: "",
-        updatedAt: "",
-      },
-      {
-        id: "p4",
-        name: "Period 4",
-        startTime: "10:30",
-        endTime: "11:15",
-        sortOrder: 4,
-        createdAt: "",
-        updatedAt: "",
-      },
-      {
-        id: "p5",
-        name: "Period 5",
-        startTime: "11:15",
-        endTime: "12:00",
-        sortOrder: 5,
-        createdAt: "",
-        updatedAt: "",
-      },
-    ];
-  }, [periods]);
-
-  // Auto-select first period when availablePeriods updates or resets
-  useEffect(() => {
-    if (availablePeriods.length > 0 && !selectedPeriodId) {
-      setSelectedPeriodId(availablePeriods[0].id);
-    }
-  }, [availablePeriods, selectedPeriodId]);
-
   // Hierarchical Filter Change Handlers
   const handleSessionChange = (sessionId: string) => {
     setSelectedSessionId(sessionId);
@@ -252,22 +177,6 @@ export default function AttendancePage() {
   const handleSectionChange = (sectionId: string) => {
     setSelectedSectionId(sectionId);
   };
-
-  // Timetable Slot / Subject Context for selected period & section
-  const currentSlotContext = useMemo(() => {
-    if (!selectedSectionId || !selectedPeriodId) return null;
-    const match = timetableSlots.find(
-      (slot) =>
-        slot.periodId === selectedPeriodId &&
-        slot.teacherSubjectAssignment?.sectionId === selectedSectionId,
-    );
-    return match || null;
-  }, [timetableSlots, selectedSectionId, selectedPeriodId]);
-
-  // Active Period Details
-  const activePeriod = useMemo(() => {
-    return availablePeriods.find((p) => p.id === selectedPeriodId) || null;
-  }, [availablePeriods, selectedPeriodId]);
 
   // Active Class & Section Objects
   const activeClass = useMemo(
@@ -303,12 +212,11 @@ export default function AttendancePage() {
 
         // Fetch existing attendance records if saved
         let existingRecords: StudentAttendance[] = [];
-        if (selectedDate && selectedPeriodId) {
+        if (selectedDate) {
           existingRecords = await getStudentAttendance(accessToken, {
             attendanceDate: selectedDate,
             sectionId: selectedSectionId,
             classId: selectedClassId,
-            periodId: isUUID(selectedPeriodId) ? selectedPeriodId : undefined,
           }).catch(() => []);
         }
 
@@ -356,7 +264,7 @@ export default function AttendancePage() {
     };
 
     void loadStudentSheet();
-  }, [accessToken, selectedSessionId, selectedClassId, selectedSectionId, selectedDate, selectedPeriodId]);
+  }, [accessToken, selectedSessionId, selectedClassId, selectedSectionId, selectedDate]);
 
   // Attendance Actions
   const handleStatusChange = (
@@ -386,25 +294,6 @@ export default function AttendancePage() {
     setStudentAttendanceList((prev) =>
       prev.map((item) => ({ ...item, status })),
     );
-  };
-
-  // Period Navigation Actions
-  const handlePreviousPeriod = () => {
-    const currentIndex = availablePeriods.findIndex(
-      (p) => p.id === selectedPeriodId,
-    );
-    if (currentIndex > 0) {
-      setSelectedPeriodId(availablePeriods[currentIndex - 1].id);
-    }
-  };
-
-  const handleNextPeriod = () => {
-    const currentIndex = availablePeriods.findIndex(
-      (p) => p.id === selectedPeriodId,
-    );
-    if (currentIndex >= 0 && currentIndex < availablePeriods.length - 1) {
-      setSelectedPeriodId(availablePeriods[currentIndex + 1].id);
-    }
   };
 
   // Live Summary Statistics
@@ -442,7 +331,7 @@ export default function AttendancePage() {
   // Submit Attendance Payload to Backend
   const handleSaveAttendance = async () => {
     if (!accessToken || !selectedDate || !selectedSectionId) {
-      setError("Please ensure Class, Section, Date, and Period are selected.");
+      setError("Please ensure Class, Section, and Date are selected.");
       return;
     }
 
@@ -476,16 +365,7 @@ export default function AttendancePage() {
       await bulkMarkStudentAttendance(
         {
           attendanceDate: selectedDate,
-          attendanceType: "PERIOD",
-          periodId: isUUID(selectedPeriodId) ? selectedPeriodId : undefined,
-          timetableSlotId: isUUID(currentSlotContext?.id)
-            ? currentSlotContext?.id
-            : undefined,
-          subjectId: isUUID(
-            currentSlotContext?.teacherSubjectAssignment?.subjectId,
-          )
-            ? currentSlotContext?.teacherSubjectAssignment?.subjectId
-            : undefined,
+          attendanceType: "DAILY",
           markedByEmployeeId: undefined,
           records: recordsPayload,
         },
@@ -493,7 +373,7 @@ export default function AttendancePage() {
       );
 
       setSuccessMessage(
-        `Successfully saved attendance for ${activeClass?.name} - Section ${activeSection?.name} (${activePeriod?.name || "Period"}).`,
+        `Successfully saved attendance for ${activeClass?.name} - Section ${activeSection?.name} on ${selectedDate}.`,
       );
       setIsExistingRecord(true);
     } catch (err) {
@@ -516,7 +396,8 @@ export default function AttendancePage() {
             Attendance Register
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Record and manage period-wise student attendance records.
+            Record and manage day-wise student attendance records — one
+            attendance per student per day.
           </p>
         </div>
 
@@ -577,7 +458,7 @@ export default function AttendancePage() {
         </CardHeader>
 
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             {/* 1. Academic Session */}
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -653,29 +534,11 @@ export default function AttendancePage() {
                 className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
               />
             </div>
-
-            {/* 5. Period */}
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Period
-              </label>
-              <select
-                value={selectedPeriodId}
-                onChange={(e) => setSelectedPeriodId(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-              >
-                {availablePeriods.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.startTime} - {p.endTime})
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* SECTION 2: CONTEXT BANNER & PERIOD SWITCHER */}
+      {/* SECTION 2: CONTEXT BANNER */}
       {selectedClassId && selectedSectionId && (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-900/60 dark:bg-blue-950/30">
           <div className="space-y-1">
@@ -685,63 +548,14 @@ export default function AttendancePage() {
               </span>
               <span className="text-slate-400">•</span>
               <span>{selectedDate}</span>
-              <span className="text-slate-400">•</span>
-              <span className="text-blue-700 dark:text-blue-300 flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {activePeriod?.name} ({activePeriod?.startTime}–{activePeriod?.endTime})
-              </span>
-              {currentSlotContext?.teacherSubjectAssignment?.subject && (
-                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded dark:bg-blue-900 dark:text-blue-200">
-                  {currentSlotContext.teacherSubjectAssignment.subject.name}
-                </span>
-              )}
             </div>
-
-            {currentSlotContext?.teacherSubjectAssignment?.employee && (
-              <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
-                Teacher: {currentSlotContext.teacherSubjectAssignment.employee.firstName}{" "}
-                {currentSlotContext.teacherSubjectAssignment.employee.lastName}
-              </p>
-            )}
 
             {isExistingRecord && (
               <p className="text-[11px] text-green-700 dark:text-green-400 font-semibold flex items-center gap-1">
                 <CheckCircle2 className="h-3 w-3 text-green-600" />
-                Attendance already recorded for this period (Editable)
+                Attendance already recorded for this day (Editable)
               </p>
             )}
-          </div>
-
-          {/* Period Navigation Buttons */}
-          <div className="flex items-center gap-2 self-start md:self-auto">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handlePreviousPeriod}
-              disabled={
-                availablePeriods.findIndex((p) => p.id === selectedPeriodId) <= 0
-              }
-              className="text-xs border-blue-200 hover:bg-blue-100 dark:border-blue-800 dark:hover:bg-blue-900/50"
-            >
-              <ChevronLeft className="mr-1 h-3.5 w-3.5" />
-              Previous Period
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleNextPeriod}
-              disabled={
-                availablePeriods.findIndex((p) => p.id === selectedPeriodId) >=
-                availablePeriods.length - 1
-              }
-              className="text-xs border-blue-200 hover:bg-blue-100 dark:border-blue-800 dark:hover:bg-blue-900/50"
-            >
-              Next Period
-              <ChevronRight className="ml-1 h-3.5 w-3.5" />
-            </Button>
           </div>
         </div>
       )}

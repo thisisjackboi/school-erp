@@ -14,6 +14,13 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { StatusChip } from "@/components/enterprise/status-chip";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
+import {
+  formatDisplayDate,
+  formatTimeOfDay,
+  toDateInputValue,
+  toTimeInputValue,
+} from "@/lib/dates";
 
 import {
   getExamTypes,
@@ -102,62 +109,17 @@ export default function ExamsPage() {
   const [subjectSchedules, setSubjectSchedules] = useState<SubjectScheduleRow[]>([]);
 
   // ── Helpers ──────────────────────────────────────────────────
-  const safeDateStr = (val: unknown): string => {
-    if (!val) return "N/A";
-    if (typeof val === "string") {
-      const d = new Date(val);
-      return isNaN(d.getTime()) ? "N/A" : d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
-    }
-    if (val instanceof Date) {
-      return isNaN(val.getTime()) ? "N/A" : val.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
-    }
-    return "N/A";
-  };
+  const safeDateStr = (val: unknown): string => formatDisplayDate(val);
 
   const safeDateRange = (start: unknown, end: unknown): string => {
     return `${safeDateStr(start)} – ${safeDateStr(end)}`;
   };
 
-  const formatTimeDisplay = (val: unknown): string => {
-    if (!val) return "";
-    let h = 0, m = 0;
-    if (typeof val === "string") {
-      const match = val.match(/^(\d{1,2}):(\d{2})/);
-      if (match) { h = Number(match[1]); m = Number(match[2]); }
-      else return val;
-    } else if (val instanceof Date) {
-      h = val.getUTCHours();
-      m = val.getUTCMinutes();
-    } else return String(val);
-    const period = h >= 12 ? "PM" : "AM";
-    const h12 = h % 12 || 12;
-    return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
-  };
+  const formatTimeDisplay = (val: unknown): string => formatTimeOfDay(val);
 
-  const formatTimeForInput = (val: unknown): string => {
-    if (!val) return "";
-    if (typeof val === "string") {
-      if (/^\d{2}:\d{2}/.test(val)) return val.substring(0, 5);
-      const d = new Date(val);
-      return isNaN(d.getTime()) ? "" : d.toISOString().substring(14, 19);
-    }
-    if (val instanceof Date) {
-      return isNaN(val.getTime()) ? "" : val.toISOString().substring(14, 19);
-    }
-    return "";
-  };
+  const formatTimeForInput = (val: unknown): string => toTimeInputValue(val);
 
-  const safeDateInput = (val: unknown): string => {
-    if (!val) return "";
-    if (typeof val === "string") {
-      const d = new Date(val);
-      return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
-    }
-    if (val instanceof Date) {
-      return isNaN(val.getTime()) ? "" : val.toISOString().split("T")[0];
-    }
-    return "";
-  };
+  const safeDateInput = (val: unknown): string => toDateInputValue(val);
 
   const statusLabel: Record<string, string> = {
     SCHEDULED: "Upcoming",
@@ -624,9 +586,11 @@ export default function ExamsPage() {
                       <TableCell className="font-semibold">{Number(sc.passingMarks)} / {Number(sc.maxMarks)}</TableCell>
                       <TableCell>{sc.room || "-"}</TableCell>
                       <TableCell className="text-right">
+                        <PermissionGate permission="exam-schedules.delete">
                         <Button variant="ghost" size="sm" onClick={() => promptScheduleDelete(sc)} className="h-8 w-8 p-0 text-rose-600" title={`Delete schedule for ${sc.subject?.name || "this subject"}`}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
+                      </PermissionGate>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -645,10 +609,12 @@ export default function ExamsPage() {
                 Set marks, exam date & time for each subject of {examClass?.name || "the class"} ({examSections.length > 0 ? examSections.map((s) => s.name).join(", ") : ""})
               </p>
             </div>
-            <Button size="sm" onClick={handleSubmitSchedules} disabled={scheduleSubmitting || subjectSchedules.length === 0} className="bg-blue-600 hover:bg-blue-700 text-xs">
-              {scheduleSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
-              {scheduleSubmitting ? "Saving..." : "Submit All"}
-            </Button>
+            <PermissionGate permission="exam-schedules.create" anyPermission={["exam-schedules.create", "exam-schedules.update"]}>
+              <Button size="sm" onClick={handleSubmitSchedules} disabled={scheduleSubmitting || subjectSchedules.length === 0} className="bg-blue-600 hover:bg-blue-700 text-xs">
+                {scheduleSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
+                {scheduleSubmitting ? "Saving..." : "Submit All"}
+              </Button>
+            </PermissionGate>
           </div>
           <CardContent className="p-0">
             {subjectsForExam.length === 0 ? (
@@ -779,14 +745,18 @@ export default function ExamsPage() {
 
         {/* Exam Actions */}
         <div className="flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={() => promptDelete(selectedExam.id, selectedExam.name)} className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50">
-            <Trash2 className="h-3 w-3 mr-1" />
-            Delete Exam
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => openEditExam(selectedExam)} className="text-xs">
-            <Edit2 className="h-3 w-3 mr-1" />
-            Edit Exam
-          </Button>
+          <PermissionGate permission="exams.delete">
+            <Button variant="outline" size="sm" onClick={() => promptDelete(selectedExam.id, selectedExam.name)} className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50">
+              <Trash2 className="h-3 w-3 mr-1" />
+              Delete Exam
+            </Button>
+          </PermissionGate>
+          <PermissionGate permission="exams.update">
+            <Button variant="outline" size="sm" onClick={() => openEditExam(selectedExam)} className="text-xs">
+              <Edit2 className="h-3 w-3 mr-1" />
+              Edit Exam
+            </Button>
+          </PermissionGate>
         </div>
 
         {/* Schedule Delete Confirmation */}
@@ -837,10 +807,12 @@ export default function ExamsPage() {
           <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Examinations</h1>
           <p className="text-xs text-muted-foreground mt-1">Manage examinations for each class</p>
         </div>
-        <Button size="sm" onClick={openCreateExam} className="bg-blue-600 hover:bg-blue-700 text-xs">
-          <Plus className="h-3 w-3 mr-1" />
-          Create Examination
-        </Button>
+        <PermissionGate permission="exams.create">
+          <Button size="sm" onClick={openCreateExam} className="bg-blue-600 hover:bg-blue-700 text-xs">
+            <Plus className="h-3 w-3 mr-1" />
+            Create Examination
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Filters */}
@@ -917,12 +889,16 @@ export default function ExamsPage() {
                         <Button variant="ghost" size="sm" onClick={() => setSelectedExam(ex)} className="h-8 w-8 p-0">
                           <Eye className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => openEditExam(ex)} className="h-8 w-8 p-0">
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => promptDelete(ex.id, ex.name)} className="h-8 w-8 p-0 text-rose-600">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <PermissionGate permission="exams.update">
+                          <Button variant="ghost" size="sm" onClick={() => openEditExam(ex)} className="h-8 w-8 p-0">
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </PermissionGate>
+                        <PermissionGate permission="exams.delete">
+                          <Button variant="ghost" size="sm" onClick={() => promptDelete(ex.id, ex.name)} className="h-8 w-8 p-0 text-rose-600">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </PermissionGate>
                       </TableCell>
                     </TableRow>
                   );

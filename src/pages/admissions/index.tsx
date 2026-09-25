@@ -17,6 +17,7 @@ import {
 } from "@/lib/api/admissions.api";
 
 import { useAuth } from "@/lib/auth/auth-context";
+import { formatDisplayDate } from "@/lib/dates";
 import { getClasses } from "@/lib/api/classes.api";
 import { getAcademicSessions } from "@/lib/api/academic-sessions.api";
 import { getSections } from "@/lib/api/sections.api";
@@ -398,7 +399,7 @@ export default function AdmissionsPage() {
 
           {
             header: "Date of Birth",
-            cell: (row) => new Date(row.dateOfBirth).toLocaleDateString(),
+            cell: (row) => formatDisplayDate(row.dateOfBirth),
           },
 
           {
@@ -550,9 +551,7 @@ export default function AdmissionsPage() {
                 <div>
                   <span className="text-muted-foreground">Date of Birth</span>
                   <p className="font-semibold">
-                    {new Date(
-                      selectedAdmission.dateOfBirth,
-                    ).toLocaleDateString()}
+                    {formatDisplayDate(selectedAdmission.dateOfBirth)}
                   </p>
                 </div>
 

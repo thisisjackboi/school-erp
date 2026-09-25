@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 import {
   createDesignation,
@@ -202,6 +203,7 @@ export default function DesignationsPage() {
           </p>
         </div>
 
+        <PermissionGate permission="designations.create">
         <Button
           onClick={openCreateModal}
           className="bg-blue-600 text-xs hover:bg-blue-700"
@@ -209,6 +211,7 @@ export default function DesignationsPage() {
           <Plus className="mr-1.5 h-3.5 w-3.5" />
           Add Designation
         </Button>
+      </PermissionGate>
       </div>
 
       {/* Error */}
@@ -303,6 +306,7 @@ export default function DesignationsPage() {
 
                       <td className="px-4 py-3">
                         <div className="flex justify-end">
+                          <PermissionGate permission="designations.update">
                           <Button
                             type="button"
                             variant="ghost"
@@ -313,6 +317,7 @@ export default function DesignationsPage() {
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
+                        </PermissionGate>
                         </div>
                       </td>
                     </tr>

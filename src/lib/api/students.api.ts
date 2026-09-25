@@ -1,5 +1,10 @@
 import { API_BASE_URL } from "./config";
-import type { StudentRecord, Gender, StudentStatus } from "../types/student";
+import type {
+  StudentProfile,
+  StudentRecord,
+  Gender,
+  StudentStatus,
+} from "../types/student";
 
 function getAuthHeaders(accessToken?: string | null) {
   return {
@@ -73,7 +78,7 @@ export async function getStudents(
 export async function getStudent(
   id: string,
   accessToken?: string | null,
-): Promise<StudentRecord> {
+): Promise<StudentProfile> {
   const response = await fetch(`${API_BASE_URL}/students/${id}`, {
     headers: getAuthHeaders(accessToken),
   });

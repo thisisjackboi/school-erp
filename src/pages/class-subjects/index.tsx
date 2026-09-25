@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 import {
   createClassSubject,
@@ -411,13 +412,15 @@ export default function ClassSubjectsPage() {
           </p>
         </div>
 
-        <Button
-          onClick={() => openCreateModal()}
-          className="bg-blue-600 text-xs hover:bg-blue-700"
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          Assign Subject
-        </Button>
+        <PermissionGate permission="class-subjects.create">
+          <Button
+            onClick={() => openCreateModal()}
+            className="bg-blue-600 text-xs hover:bg-blue-700"
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Assign Subject
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Error */}
@@ -858,16 +861,18 @@ function ClassMappingCard({
             </div>
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onAdd}
-            className="shrink-0 text-xs"
-          >
-            <Plus className="mr-1 h-3.5 w-3.5" />
-            Add
-          </Button>
+          <PermissionGate permission="class-subjects.create">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onAdd}
+              className="shrink-0 text-xs"
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Add
+            </Button>
+          </PermissionGate>
         </div>
       </CardHeader>
 
@@ -922,20 +927,22 @@ function ClassMappingCard({
                         </span>
                       )}
 
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          onEdit(
-                            assignment,
-                          )
-                        }
-                        className="h-8 w-8 text-slate-500 hover:text-blue-600"
-                        title="Edit assignment"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
+                      <PermissionGate permission="class-subjects.update">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            onEdit(
+                              assignment,
+                            )
+                          }
+                          className="h-8 w-8 text-slate-500 hover:text-blue-600"
+                          title="Edit assignment"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </PermissionGate>
                     </div>
                   </div>
                 );

@@ -1,24 +1,25 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Search,
   UserRound,
-  Send,
   Download,
   Printer,
   UserCheck,
   Bell,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { useFees, useFeeFiltersState } from "@/lib/fees-fm/store";
+import { useFees } from "@/lib/fees-fm/store";
 import { useFeeAccess } from "@/lib/fees-fm/access";
+import { useAuth } from "@/lib/auth/auth-context";
+import { listStudentSummaries } from "@/lib/api/fees.api";
 import { FeeStatusBadge } from "@/components/fees/fee-status-badge";
 import { CollectFeeDialog } from "@/components/fees/collect-fee-dialog";
 import { formatCurrency } from "@/lib/utils";
-import { useToast } from "@/components/ui/toast";
 import type { StudentSummaryRow } from "@/lib/fees-fm/types";
 
 function formatDate(d?: string): string {
@@ -53,54 +54,98 @@ function exportCsv(rows: StudentSummaryRow[]) {
 }
 
 export default function FeeStudentsPage() {
-  const { studentSummaries, sendReminders } = useFees();
-  const { isParent, isReader, canCollect } = useFeeAccess();
-  const { toast } = useToast();
-  const filters = useFeeFiltersState();
+  const { accessToken } = useAuth();
+  const { sessions, session, reloading } = useFees();
+  const { isParent, canCollect } = useFeeAccess();
   const [query, setQuery] = useState("");
   const [collectFor, setCollectFor] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Filter section: academic year, class, section
+  const [yearId, setYearId] = useState<string>(session?.id ?? "");
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedSection, setSelectedSection] = useState("");
+  const [summaries, setSummaries] = useState<StudentSummaryRow[]>([]);
+  const [filterLoading, setFilterLoading] = useState(false);
+
+  useEffect(() => {
+    if (!yearId && session?.id) setYearId(session.id);
+  }, [session?.id, yearId]);
+
+  const effectiveYearId = yearId || session?.id || "";
+
+  useEffect(() => {
+    if (reloading) return;
+    if (!effectiveYearId || !accessToken) {
+      setSummaries([]);
+      return;
+    }
+    let cancelled = false;
+    setFilterLoading(true);
+    listStudentSummaries({ academicSessionId: effectiveYearId }, accessToken)
+      .then((rows) => {
+        if (!cancelled) setSummaries(rows as StudentSummaryRow[]);
+      })
+      .catch(() => {
+        if (!cancelled) setSummaries([]);
+      })
+      .finally(() => {
+        if (!cancelled) setFilterLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveYearId, accessToken, reloading]);
+
+  const handleYearChange = (value: string) => {
+    setYearId(value);
+    setSelectedClass("");
+    setSelectedSection("");
+  };
+
+  const classOptions = useMemo(
+    () =>
+      Array.from(new Set(summaries.map((s) => s.className))).sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    [summaries],
+  );
+
+  const sectionOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          summaries
+            .filter((s) => !selectedClass || s.className === selectedClass)
+            .map((s) => s.sectionName),
+        ),
+      ).sort((a, b) => a.localeCompare(b)),
+    [summaries, selectedClass],
+  );
 
   const scoped = useMemo(() => {
-    if (isParent && studentSummaries.length) {
-      const mine = studentSummaries[0].enrollmentId;
-      return studentSummaries.filter((s) => s.enrollmentId === mine);
+    let list = summaries;
+    if (isParent && list.length) {
+      const mine = list[0].enrollmentId;
+      list = list.filter((s) => s.enrollmentId === mine);
     }
-    return studentSummaries;
-  }, [isParent, studentSummaries]);
+    return list.filter((s) => {
+      if (selectedClass && s.className !== selectedClass) return false;
+      if (selectedSection && s.sectionName !== selectedSection) return false;
+      return true;
+    });
+  }, [summaries, isParent, selectedClass, selectedSection]);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return scoped.filter((s) => {
-      if (filters.className && s.className !== filters.className) return false;
-      if (!q) return true;
-      return (
+    if (!q) return scoped;
+    return scoped.filter(
+      (s) =>
         s.studentName.toLowerCase().includes(q) ||
         s.admissionNumber.toLowerCase().includes(q) ||
         s.parentPhone.toLowerCase().includes(q) ||
-        (s.rollNumber ? String(s.rollNumber).includes(q) : false)
-      );
-    });
-  }, [scoped, filters.className, query]);
-
-  const toggleAll = () => {
-    if (selected.size === rows.length) setSelected(new Set());
-    else setSelected(new Set(rows.map((r) => r.enrollmentId)));
-  };
-  const toggleOne = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const handleRemind = () => {
-    const ids = selected.size ? Array.from(selected) : rows.filter((r) => r.overdueAmount > 0).map((r) => r.enrollmentId);
-    const count = sendReminders(ids, "SMS");
-    toast("Reminders sent", `${count} student reminder(s) queued via SMS.`, "success");
-  };
+        (s.rollNumber ? String(s.rollNumber).includes(q) : false),
+    );
+  }, [scoped, query]);
 
   const handlePrint = () => window.print();
 
@@ -137,7 +182,53 @@ export default function FeeStudentsPage() {
 
       <Card>
         <CardContent className="p-3 space-y-3">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={yearId}
+              onChange={(e) => handleYearChange(e.target.value)}
+              disabled={sessions.length === 0}
+              className="h-9 rounded-md border border-input bg-background px-3 text-xs font-semibold"
+              aria-label="Academic Year"
+            >
+              {sessions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                  {s.isCurrent ? " (Current)" : ""}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedClass}
+              onChange={(e) => {
+                setSelectedClass(e.target.value);
+                setSelectedSection("");
+              }}
+              className="h-9 rounded-md border border-input bg-background px-3 text-xs font-semibold"
+              aria-label="Class"
+            >
+              <option value="">All Classes</option>
+              {classOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedSection}
+              onChange={(e) => setSelectedSection(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-3 text-xs font-semibold"
+              aria-label="Section"
+            >
+              <option value="">All Sections</option>
+              {sectionOptions.map((sec) => (
+                <option key={sec} value={sec}>
+                  {sec}
+                </option>
+              ))}
+            </select>
+            {filterLoading && (
+              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+            )}
             <div className="relative flex-1 min-w-[220px]">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
@@ -147,19 +238,6 @@ export default function FeeStudentsPage() {
                 className="pl-8 h-9 text-xs"
               />
             </div>
-            <select
-              value={filters.className}
-              onChange={(e) => filters.setClassName(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-xs"
-            >
-              <option value="">All Classes</option>
-              {Array.from(new Set(scoped.map((s) => s.className))).sort((a, b) => a.localeCompare(b)).map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-            <Button variant="outline" size="sm" className="h-9 text-xs" onClick={handleRemind} disabled={isReader}>
-              <Send className="mr-1.5 h-3.5 w-3.5" /> Send Reminders{selected.size ? ` (${selected.size})` : ""}
-            </Button>
             <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => exportCsv(rows)}>
               <Download className="mr-1.5 h-3.5 w-3.5" /> CSV
             </Button>
@@ -171,9 +249,6 @@ export default function FeeStudentsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-8">
-                  <input type="checkbox" className="accent-blue-600" checked={rows.length > 0 && selected.size === rows.length} onChange={toggleAll} />
-                </TableHead>
                 <TableHead>Student</TableHead>
                 <TableHead>Class</TableHead>
                 <TableHead>Status</TableHead>
@@ -186,16 +261,13 @@ export default function FeeStudentsPage() {
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-10">
                   <UserRound className="h-6 w-6 mx-auto text-slate-300 mb-2" />
                   No students in this view.
                 </TableCell></TableRow>
               ) : (
                 rows.map((s) => (
                   <TableRow key={s.enrollmentId}>
-                    <TableCell>
-                      <input type="checkbox" className="accent-blue-600" checked={selected.has(s.enrollmentId)} onChange={() => toggleOne(s.enrollmentId)} />
-                    </TableCell>
                     <TableCell className="text-xs">
                       <Link to={`/fees/students/${s.enrollmentId}`} className="font-semibold hover:text-blue-600">
                         {s.studentName}
@@ -226,7 +298,7 @@ export default function FeeStudentsPage() {
             </TableBody>
           </Table>
           <p className="text-[11px] text-muted-foreground">
-            {selected.size > 0 ? `${selected.size} selected · ` : ""}{rows.length} of {scoped.length} students · bulk actions act on selected or overdue students.
+            {rows.length} of {scoped.length} students · click a student to view the full ledger.
           </p>
         </CardContent>
       </Card>

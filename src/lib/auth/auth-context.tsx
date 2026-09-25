@@ -5,13 +5,22 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 
-import { login as loginApi } from "@/lib/api/auth.api";
+import {
+  login as loginApi,
+  getProfile,
+} from "@/lib/api/auth.api";
 import { API_BASE_URL } from "@/lib/api/config";
-import type { AuthUser, LoginRequest } from "@/lib/types/auth";
+import type {
+  AuthUser,
+  AuthUserRole,
+  AuthUserPermission,
+  LoginRequest,
+} from "@/lib/types/auth";
 
 interface AuthContextType {
   accessToken: string | null;
@@ -26,13 +35,44 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * The backend `/auth/profile` endpoint returns the user resolved by the
+ * JWT strategy, whose `roles` and `permissions` are string arrays
+ * (e.g. `["SUPER_ADMIN"]` and `["students.read", ...]`). This function
+ * normalizes them into the object shapes the frontend role system expects.
+ */
+function normalizeProfile(profile: any): {
+  roles: AuthUserRole[];
+  permissions: AuthUserPermission[];
+} {
+  const roles: AuthUserRole[] = Array.isArray(profile.roles)
+    ? profile.roles.map((r: any) =>
+        typeof r === "string" ? { id: r, name: r } : r,
+      )
+    : [];
+
+  const permissions: AuthUserPermission[] = Array.isArray(
+    profile.permissions,
+  )
+    ? profile.permissions.map((p: any) =>
+        typeof p === "string"
+          ? { id: p, code: p, module: p.split(".")[0] }
+          : p,
+      )
+    : [];
+
+  return { roles, permissions };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [accessToken, setAccessTokenState] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("accessToken");
-    }
-    return null;
-  });
+  const [accessToken, setAccessTokenState] = useState<string | null>(
+    () => {
+      if (typeof window !== "undefined") {
+        return localStorage.getItem("accessToken");
+      }
+      return null;
+    },
+  );
 
   const [user, setUserState] = useState<AuthUser | null>(() => {
     if (typeof window !== "undefined") {
@@ -50,7 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  const saveAuthData = (token: string | null, userData: AuthUser | null) => {
+  const userRef = useRef<AuthUser | null>(null);
+
+  const saveAuthData = (
+    token: string | null,
+    userData: AuthUser | null,
+  ) => {
+    userRef.current = userData;
     setAccessTokenState(token);
     setUserState(userData);
 
@@ -69,16 +115,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = useCallback(async (credentials: LoginRequest) => {
-    setIsLoading(true);
+  /**
+   * Fetch the authenticated user's real roles + permissions from the
+   * database via `/auth/profile`. This is the single source of truth for
+   * the RBAC checks performed across the UI.
+   */
+  const enrichUserWithProfile = useCallback(
+    async (
+      token: string | null,
+      baseUser: AuthUser,
+    ): Promise<AuthUser> => {
+      try {
+        const profile = await getProfile(token);
+        const { roles, permissions } = normalizeProfile(profile);
+        return {
+          ...baseUser,
+          employeeId:
+            profile.employeeId ??
+            baseUser.employeeId ??
+            null,
+          roles,
+          permissions,
+        };
+      } catch (error) {
+        console.error("Failed to load user profile", error);
+        return baseUser;
+      }
+    },
+    [],
+  );
 
-    try {
-      const result = await loginApi(credentials);
-      saveAuthData(result.data.accessToken, result.data.user);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const login = useCallback(
+    async (credentials: LoginRequest) => {
+      setIsLoading(true);
+
+      try {
+        const result = await loginApi(credentials);
+        const token = result.data.accessToken;
+        const baseUser = result.data.user;
+
+        saveAuthData(token, baseUser);
+
+        const enriched = await enrichUserWithProfile(token, baseUser);
+        saveAuthData(token, enriched);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [enrichUserWithProfile],
+  );
 
   const refreshAccessToken = useCallback(async (): Promise<string | null> => {
     try {
@@ -90,7 +175,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        // Fallback to currently stored localStorage token if available
         const currentToken = localStorage.getItem("accessToken");
         if (currentToken) {
           return currentToken;
@@ -99,8 +183,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      saveAuthData(result.data.accessToken, result.data.user);
-      return result.data.accessToken;
+      const token = result.data.accessToken;
+      const baseUser = result.data.user ?? userRef.current;
+
+      saveAuthData(token, baseUser);
+
+      if (baseUser) {
+        const enriched = await enrichUserWithProfile(token, baseUser);
+        saveAuthData(token, enriched);
+      }
+
+      return token;
     } catch {
       const currentToken = localStorage.getItem("accessToken");
       if (currentToken) {
@@ -109,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       saveAuthData(null, null);
       return null;
     }
-  }, []);
+  }, [enrichUserWithProfile]);
 
   const logout = useCallback(async () => {
     try {

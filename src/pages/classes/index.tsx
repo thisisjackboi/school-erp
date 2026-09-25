@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 import {
   createClass,
@@ -233,13 +234,15 @@ export default function ClassesPage() {
           </p>
         </div>
 
-        <Button
-          onClick={openCreateModal}
-          className="bg-blue-600 text-xs hover:bg-blue-700"
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          Add Class
-        </Button>
+        <PermissionGate permission="classes.create">
+          <Button
+            onClick={openCreateModal}
+            className="bg-blue-600 text-xs hover:bg-blue-700"
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Add Class
+          </Button>
+        </PermissionGate>
       </div>
 
       {error && (
@@ -266,13 +269,15 @@ export default function ClassesPage() {
               managing the academic structure.
             </p>
 
-            <Button
-              onClick={openCreateModal}
-              className="mt-4 bg-blue-600 text-xs hover:bg-blue-700"
-            >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Create First Class
-            </Button>
+            <PermissionGate permission="classes.create">
+              <Button
+                onClick={openCreateModal}
+                className="mt-4 bg-blue-600 text-xs hover:bg-blue-700"
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Create First Class
+              </Button>
+            </PermissionGate>
           </CardContent>
         </Card>
       ) : (
@@ -301,19 +306,21 @@ export default function ClassesPage() {
                     </div>
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() =>
-                      openEditModal(
-                        schoolClass,
-                      )
-                    }
-                    className="h-8 w-8 text-slate-500 hover:text-blue-600"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
+                  <PermissionGate permission="classes.update">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        openEditModal(
+                          schoolClass,
+                        )
+                      }
+                      className="h-8 w-8 text-slate-500 hover:text-blue-600"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </PermissionGate>
                 </div>
               </CardHeader>
 

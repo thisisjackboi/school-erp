@@ -24,6 +24,17 @@ export interface UpdateExamResultPayload {
   rankInSection?: number;
 }
 
+function toExamResult(raw: ExamResult): ExamResult {
+  return {
+    ...raw,
+    percentage: Number(raw.percentage),
+    totalMarksObtained: Number(raw.totalMarksObtained),
+    totalMaxMarks: Number(raw.totalMaxMarks),
+    rankInSection:
+      raw.rankInSection == null ? null : Number(raw.rankInSection),
+  };
+}
+
 export async function getExamResults(
   filters?: GetExamResultsFilters,
   accessToken?: string | null
@@ -42,7 +53,7 @@ export async function getExamResults(
   if (!response.ok || !result.success) {
     throw new Error(result.message || "Failed to fetch exam results");
   }
-  return result.data;
+  return (result.data as ExamResult[]).map(toExamResult);
 }
 
 export async function getExamResult(
@@ -56,7 +67,7 @@ export async function getExamResult(
   if (!response.ok || !result.success) {
     throw new Error(result.message || "Failed to fetch exam result");
   }
-  return result.data;
+  return toExamResult(result.data);
 }
 
 export async function createExamResult(

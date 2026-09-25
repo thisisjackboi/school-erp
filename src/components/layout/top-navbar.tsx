@@ -22,12 +22,14 @@ import { Button } from "@/components/ui/button";
 
 export function TopNavbar() {
   const { theme, setTheme } = useTheme();
-  const { roleDetails } = useRole();
+  const { activeRoleName } = useRole();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  const displayName = user?.username ?? activeRoleName ?? "User";
 
   const handleLogout = async () => {
     try {
@@ -127,7 +129,7 @@ export function TopNavbar() {
             className="flex items-center space-x-2 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <Avatar
-              fallback={roleDetails.name.substring(0, 2).toUpperCase()}
+              fallback={(activeRoleName || "U").substring(0, 2).toUpperCase()}
               size="sm"
             />
           </button>
@@ -136,10 +138,10 @@ export function TopNavbar() {
             <div className="absolute right-0 mt-2 w-56 rounded-lg border border-border bg-card shadow-xl p-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-150">
               <div className="p-2 border-b border-border mb-1">
                 <p className="font-bold text-slate-900 dark:text-slate-100">
-                  {roleDetails.name} Account
+                  {displayName} Account
                 </p>
                 <p className="text-[10px] text-muted-foreground">
-                  user@{roleDetails.id}.school.edu
+                  {activeRoleName ?? "User"} Role
                 </p>
               </div>
               <Link

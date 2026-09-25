@@ -8,6 +8,7 @@ import {
   Search,
   ShieldCheck,
   UsersRound,
+  XCircle,
 } from "lucide-react";
 
 import {
@@ -63,6 +64,12 @@ export function RolePermissionManager() {
 
   const [expandedModules, setExpandedModules] =
     useState<string[]>([]);
+
+  const [saveStatus, setSaveStatus] =
+    useState<"idle" | "success" | "error">("idle");
+
+  const [saveMessage, setSaveMessage] =
+    useState("");
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -303,6 +310,7 @@ export function RolePermissionManager() {
     }
 
     setIsSaving(true);
+    setSaveStatus("idle");
 
     try {
       await updateRolePermissions(
@@ -310,10 +318,28 @@ export function RolePermissionManager() {
         selectedPermissionIds,
         accessToken,
       );
+
+      setSaveStatus("success");
+      setSaveMessage(
+        `Permissions for "${selectedRole.name}" saved successfully.`,
+      );
+
+      // Auto-clear success message after 4 seconds
+      setTimeout(() => {
+        setSaveStatus("idle");
+        setSaveMessage("");
+      }, 4000);
     } catch (error) {
       console.error(
         "Failed to update role permissions",
         error,
+      );
+
+      setSaveStatus("error");
+      setSaveMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to update role permissions",
       );
     } finally {
       setIsSaving(false);
@@ -372,6 +398,21 @@ export function RolePermissionManager() {
           </div>
         )}
       </div>
+
+      {/* Save Status Notifications */}
+      {saveStatus === "success" && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {saveMessage}
+        </div>
+      )}
+
+      {saveStatus === "error" && (
+        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">
+          <XCircle className="h-4 w-4 shrink-0" />
+          {saveMessage}
+        </div>
+      )}
 
       {/* Main Layout */}
 
@@ -647,7 +688,7 @@ export function RolePermissionManager() {
                                       permission.id
                                     }
                                     className={[
-                                      "flex cursor-pointer items-center justify-between gap-4 px-4 py-3 transition-colors",
+                                      "relative flex cursor-pointer items-center justify-between gap-4 px-4 py-3 transition-colors",
                                       isChecked
                                         ? "bg-blue-50/50 dark:bg-blue-950/20"
                                         : "hover:bg-muted/40",

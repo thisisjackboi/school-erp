@@ -1,6 +1,7 @@
 import React, {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -10,20 +11,44 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { getAcademicSessions } from "@/lib/api/academic-sessions.api";
 import { getClasses } from "@/lib/api/classes.api";
 import { getStudents } from "@/lib/api/students.api";
-import { getFeeCategories, toFeeCategory } from "@/lib/api/fees.api";
+import {
+  createExpense,
+  createFeeCategory,
+  createFeeCollection,
+  createFeeDiscount,
+  createFeeFine,
+  createFeeStructure,
+  deleteFeeCategory,
+  deleteFeeFine,
+  deleteFeeStructure,
+  listExpenses,
+  listFeeCategories,
+  listFeeCollections,
+  listFeeDiscounts,
+  listFeeFines,
+  listFeeStructures,
+  listInvoiceRows,
+  listPaymentMethods,
+  listStudentSummaries,
+  updateFeeCategory,
+  updateFeeFine,
+  updateFeeStructure,
+  generateFees,
+  type FeeCollectionRaw,
+  type FeeStructureRaw,
+  type InvoiceRowRaw,
+} from "@/lib/api/fees.api";
 
 import type { AcademicSession } from "@/lib/types/academic-session";
 import type { SchoolClass } from "@/lib/types/class";
 
 import type {
-  AddOnEntry,
   DashboardStats,
   DefaulterRow,
   DiscountEntry,
   ExpenseEntry,
   FeeCategory,
   FeeStatus,
-  FeeStoreState,
   FeeStructure,
   FeeStructureItem,
   FineEntry,
@@ -31,17 +56,10 @@ import type {
   Payment,
   PaymentAllocation,
   PaymentMode,
-  ReminderChannel,
-  ReminderLog,
-  StudentAssignment,
   StudentInfo,
   StudentSummaryRow,
-  SummaryStatus,
 } from "./types";
-import { daysInMonth, isoToDate, toISODate, uid } from "./seed";
-
-const STORE_KEY = "school-erp:fees-fm:store:v2";
-const STORE_VERSION = 3;
+import { round2, isoToDate, toISODate } from "./helpers";
 
 export interface FeeFilters {
   className?: string;
@@ -51,296 +69,159 @@ export interface FeeFilters {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Pure helpers
+// Mapping helpers (backend raw → domain)
 // ═══════════════════════════════════════════════════════════════════════
 
-function addDays(iso: string, days: number): Date {
-  const d = isoToDate(iso);
-  d.setDate(d.getDate() + days);
-  return d;
+function invoiceLabel(row: InvoiceRow): string {
+  return `${row.categoryLabel} · ${row.periodLabel}`;
 }
 
-function monthKeyOfDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthLabelOf(key: string): string {
-  const [y, m] = key.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
-}
-
-function clampDay(year: number, month: number, day: number): string {
-  const last = daysInMonth(year, month + 1);
-  return toISODate(new Date(year, month, Math.min(day, last)));
-}
-
-function dueDateFor(year: number, monthIndex: number, dueDay: number): string {
-  return clampDay(year, monthIndex, dueDay);
-}
-
-function receiptNumber(year: string, counter: number): string {
-  return `RCPT-${year}-${String(counter).padStart(4, "0")}`;
-}
-
-function statusOf(balance: number, paid: number, payable: number, dueDate: string, today: Date): FeeStatus {
-  if (balance <= 0) return "PAID";
-  if (today.getTime() > isoToDate(dueDate).getTime()) return "OVERDUE";
-  if (paid > 0) return "PARTIAL";
-  return "PENDING";
-}
-
-function sumPayable(rows: InvoiceRow[]) {
-  return rows.reduce((s, r) => s + r.payableAmount, 0);
-}
-function sumPaid(rows: InvoiceRow[]) {
-  return rows.reduce((s, r) => s + r.paidAmount, 0);
-}
-function sumBalance(rows: InvoiceRow[]) {
-  return rows.reduce((s, r) => s + r.balance, 0);
-}
-
-// ── Derive rows: discounts, fines, late fee, payments, status ─────────
-function deriveInvoices(
-  invoices: InvoiceRow[],
-  discounts: DiscountEntry[],
-  fines: FineEntry[],
-  payments: Payment[],
-  today: Date,
-): InvoiceRow[] {
-  const paidByInvoice = new Map<string, number>();
-  for (const p of payments) {
-    for (const a of p.allocations) {
-      paidByInvoice.set(a.invoiceId, (paidByInvoice.get(a.invoiceId) || 0) + a.amount);
-    }
-  }
-  const fineByInvoice = new Map<string, number>();
-  for (const f of fines) {
-    fineByInvoice.set(f.invoiceId, (fineByInvoice.get(f.invoiceId) || 0) + f.amount);
-  }
-
-  // late fee + fines
-  const rows = invoices.map((r) => {
-    const principalOutstanding = Math.max(0, r.baseAmount - r.discountAmount + (fineByInvoice.get(r.id) || 0));
-    const beyondGrace = today.getTime() > addDays(r.dueDate, r.gracePeriodDays).getTime();
-    const late =
-      (beyondGrace && principalOutstanding > 0 && (paidByInvoice.get(r.id) || 0) < principalOutstanding
-        ? r.lateFeeAmount
-        : 0) + (fineByInvoice.get(r.id) || 0);
-    return { ...r, lateFee: late };
-  });
-
-  // discounts distribution
-  const discountMap = new Map<string, number>(rows.map((r) => [r.id, 0]));
-  const sortedDiscounts = [...discounts].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  for (const d of sortedDiscounts) {
-    const targets = rows
-      .filter(
-        (r) =>
-          r.enrollmentId === d.enrollmentId &&
-          (d.scope === "ROW"
-            ? d.invoiceId
-              ? r.id === d.invoiceId
-              : true
-            : d.scope === "HEAD"
-              ? r.feeCategoryId === d.feeCategoryId
-              : true),
-      )
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-    let remaining = d.amount;
-    for (const t of targets) {
-      if (remaining <= 0) break;
-      const available = Math.max(0, t.baseAmount + t.lateFee - (discountMap.get(t.id) || 0));
-      const applied = Math.min(remaining, available);
-      if (applied > 0) {
-        discountMap.set(t.id, (discountMap.get(t.id) || 0) + applied);
-        remaining -= applied;
-      }
-    }
-  }
-
-  return rows.map((r) => {
-    const discountAmount = discountMap.get(r.id) || 0;
-    const payableAmount = Math.max(0, r.baseAmount + r.lateFee - discountAmount);
-    const paidAmount = Math.min(paidByInvoice.get(r.id) || 0, payableAmount);
-    const balance = Math.max(0, payableAmount - paidAmount);
-    return {
-      ...r,
-      discountAmount: round2(discountAmount),
-      payableAmount: round2(payableAmount),
-      paidAmount: round2(paidAmount),
-      balance: round2(balance),
-      status: statusOf(balance, paidAmount, payableAmount, r.dueDate, today),
-    };
-  });
-}
-
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
-
-// ── Invoice generation ────────────────────────────────────────────────
-function generateRowsForEnrollment(
-  en: StudentInfo,
-  structure: FeeStructure,
-  addOns: AddOnEntry[],
-  categories: FeeCategory[],
-  sessionStart: Date,
-  today: Date,
-): InvoiceRow[] {
-  const rows: InvoiceRow[] = [];
-  const yearA = sessionStart.getFullYear();
-  const yearB = String((yearA + 1) % 100).padStart(2, "0");
-  const periodLabelAnnual = `Annual · ${yearA}-${yearB}`;
-  const enrolled = isoToDate(en.enrolledOn);
-
-  const months: { key: string; date: Date }[] = [];
-  for (let i = 0; i < 12; i += 1) {
-    const d = new Date(sessionStart.getFullYear(), sessionStart.getMonth() + i, 1);
-    months.push({ key: monthKeyOfDate(d), date: d });
-  }
-  // months from enrollment onward (pro-rated mid-year support)
-  const enrolledMonthIndex = Math.max(
-    0,
-    (enrolled.getFullYear() - sessionStart.getFullYear()) * 12 +
-      (enrolled.getMonth() - sessionStart.getMonth()),
-  );
-  const applicableMonths = months.slice(Math.min(enrolledMonthIndex, months.length - 1));
-
-  const catById = new Map(categories.map((c) => [c.id, c]));
-  const catOf = (id: string) => catById.get(id);
-
-  const push = (
-    categoryId: string,
-    categoryLabel: string,
-    periodLabel: string,
-    monthKey: string | undefined,
-    baseAmount: number,
-    dueDate: string,
-    gracePeriodDays: number,
-    lateFeeAmount: number,
-    source: "STRUCTURE" | "ADDON",
-    proratable: boolean,
-  ) => {
-    rows.push({
-      id: uid("inv"),
-      enrollmentId: en.enrollmentId,
-      feeStructureId: structure.id,
-      feeCategoryId: categoryId,
-      categoryLabel,
-      periodLabel,
-      monthKey,
-      baseAmount: round2(baseAmount),
-      gracePeriodDays,
-      lateFeeAmount,
-      discountAmount: 0,
-      lateFee: 0,
-      payableAmount: round2(baseAmount),
-      paidAmount: 0,
-      balance: round2(baseAmount),
-      dueDate,
-      status: dueDate <= toISODate(today) ? "PENDING" : "PENDING",
-      source,
-    });
-  };
-
-  for (const item of structure.items) {
-    const cat = catOf(item.feeCategoryId);
-    if (!cat) continue;
-    const base = cat.isRecurring && cat.recurringInterval === "MONTHLY";
-    const yearly = cat.recurringInterval === "YEARLY";
-    const once = cat.recurringInterval === "ONCE";
-    const quarterly = cat.recurringInterval === "QUARTERLY";
-
-    if (base) {
-      applicableMonths.forEach((m, idx) => {
-        let amount = item.amount;
-        if (idx === 0 && item.proratable && item.isAddOn === false) {
-          const lastDay = daysInMonth(m.date.getFullYear(), m.date.getMonth() + 1);
-          const monthEnd = new Date(m.date.getFullYear(), m.date.getMonth() + 1, 0).getTime();
-          const start = Math.max(enrolled.getTime(), m.date.getTime());
-          const remainingDays = Math.max(1, Math.round((monthEnd - start) / 86400000) + 1);
-          amount = round2(item.amount * (remainingDays / lastDay));
-        }
-        push(
-          cat.id,
-          cat.name,
-          `Monthly · ${monthLabelOf(m.key)}`,
-          m.key,
-          amount,
-          dueDateFor(m.date.getFullYear(), m.date.getMonth(), item.dueDay),
-          item.gracePeriodDays,
-          item.lateFeeAmount,
-          "STRUCTURE",
-          item.proratable,
-        );
-      });
-    } else if (yearly) {
-      push(cat.id, cat.name, periodLabelAnnual, undefined, item.amount, toISODate(addDays(toISODate(sessionStart), 10)), item.gracePeriodDays, item.lateFeeAmount, "STRUCTURE", item.proratable);
-    } else if (once) {
-      push(cat.id, cat.name, "One-time", undefined, item.amount, toISODate(new Date(enrolled.getTime() + 7 * 86400000)), item.gracePeriodDays, item.lateFeeAmount, "STRUCTURE", item.proratable);
-    } else if (quarterly) {
-      for (let t = 1; t <= 2; t += 1) {
-        const termDate = new Date(sessionStart.getFullYear(), sessionStart.getMonth() + (t - 1) * 3, item.dueDay);
-        push(cat.id, cat.name, `Term ${t} · ${yearA}-${yearB}`, undefined, item.amount, toISODate(termDate), item.gracePeriodDays, item.lateFeeAmount, "STRUCTURE", item.proratable);
-      }
-    }
-  }
-
-  // per-student add-ons
-  for (const ao of addOns) {
-    if (!ao.active) continue;
-    const cat = catOf(ao.feeCategoryId);
-    if (!cat) continue;
-    if (cat.recurringInterval === "MONTHLY") {
-      applicableMonths.forEach((m, idx) => {
-        let amount = ao.amount;
-        if (idx === 0 && ao.proratable) {
-          const lastDay = daysInMonth(m.date.getFullYear(), m.date.getMonth() + 1);
-          const monthEnd = new Date(m.date.getFullYear(), m.date.getMonth() + 1, 0).getTime();
-          const start = Math.max(enrolled.getTime(), m.date.getTime());
-          const remainingDays = Math.max(1, Math.round((monthEnd - start) / 86400000) + 1);
-          amount = round2(ao.amount * (remainingDays / lastDay));
-        }
-        push(ao.feeCategoryId, cat.name, `Monthly · ${monthLabelOf(m.key)}`, m.key, amount, dueDateFor(m.date.getFullYear(), m.date.getMonth(), ao.dueDay), ao.gracePeriodDays, ao.lateFeeAmount, "ADDON", ao.proratable);
-      });
-    } else if (cat.recurringInterval === "YEARLY") {
-      push(ao.feeCategoryId, cat.name, periodLabelAnnual, undefined, ao.amount, toISODate(addDays(toISODate(sessionStart), 10)), ao.gracePeriodDays, ao.lateFeeAmount, "ADDON", ao.proratable);
-    } else {
-      push(ao.feeCategoryId, cat.name, "One-time", undefined, ao.amount, toISODate(new Date(enrolled.getTime() + 7 * 86400000)), ao.gracePeriodDays, ao.lateFeeAmount, "ADDON", ao.proratable);
-    }
-  }
-
-  return rows;
-}
-
-function mergeRows(rows: InvoiceRow[], existing: InvoiceRow[]): InvoiceRow[] {
-  const key = (r: InvoiceRow) =>
-    `${r.enrollmentId}|${r.feeCategoryId}|${r.periodLabel}|${r.monthKey || ""}`;
-  const seen = new Set(existing.map(key));
-  const merged = [...existing];
-  for (const r of rows) {
-    if (!seen.has(key(r))) {
-      merged.push(r);
-      seen.add(key(r));
-    }
-  }
-  return merged;
-}
-
-function emptyUniverseStore(sessionId: string): FeeStoreState {
+function toInvoiceRow(raw: InvoiceRowRaw): InvoiceRow {
   return {
-    sessionId,
-    structures: [],
-    assignments: [],
-    addOns: [],
-    invoices: [],
-    discounts: [],
-    fines: [],
-    payments: [],
-    reminders: [],
-    receiptCounter: 1,
-    expenses: [],
-    version: STORE_VERSION,
+    id: raw.id,
+    assignmentId: raw.assignmentId,
+    feeStructureItemId: raw.feeStructureItemId,
+    enrollmentId: raw.enrollmentId,
+    feeStructureId: raw.feeStructureId,
+    feeCategoryId: raw.feeCategoryId,
+    categoryLabel: raw.categoryName,
+    categoryCode: raw.categoryCode,
+    periodKey: raw.periodKey,
+    periodLabel: raw.periodLabel,
+    monthKey: raw.monthKey,
+    baseAmount: raw.baseAmount,
+    gracePeriodDays: raw.gracePeriodDays,
+    lateFeeAmount: raw.lateFeeAmount,
+    discountAmount: raw.discountAmount,
+    fineAmount: raw.fineAmount,
+    lateFee: raw.lateFee,
+    payableAmount: raw.payableAmount,
+    paidAmount: raw.paidAmount,
+    balance: raw.balance,
+    dueDate: raw.dueDate,
+    status: raw.status,
+    source: raw.source,
+  };
+}
+
+function toFeeStructure(raw: FeeStructureRaw): FeeStructure {
+  const items: FeeStructureItem[] = raw.feeStructureItems.map((i) => ({
+    id: i.id,
+    feeCategoryId: i.feeCategoryId,
+    categoryName: i.feeCategory.name,
+    amount: Number(i.amount),
+    dueDay: i.dueDay ?? 10,
+    lateFeeAmount: Number(i.lateFeeAmount),
+    gracePeriodDays: Number(i.gracePeriodDays),
+  }));
+  return {
+    id: raw.id,
+    name: raw.name,
+    academicSessionId: raw.academicSessionId,
+    classId: raw.classId,
+    className: raw.class.name,
+    isActive: raw.isActive,
+    items,
+    createdAt: raw.createdAt,
+  };
+}
+
+function toPayment(raw: FeeCollectionRaw): Payment {
+  const allocations: PaymentAllocation[] = raw.feeCollectionItems.map((i) => ({
+    invoiceId: `${i.studentFeeAssignment.id}:${i.feeStructureItem.id}`,
+    amount: Number(i.amountPaid),
+  }));
+  return {
+    id: raw.id,
+    receiptNumber: raw.receiptNumber,
+    enrollmentId: raw.studentEnrollmentId,
+    amount: Number(raw.totalAmount),
+    paymentMode: raw.paymentMethod.name,
+    referenceNumber: raw.transactionReference || undefined,
+    remarks: raw.remarks || undefined,
+    receivedBy: raw.collectedByUser
+      ? raw.collectedByUser.employee
+        ? `${raw.collectedByUser.employee.firstName} ${raw.collectedByUser.employee.lastName}`.trim()
+        : raw.collectedByUser.username.charAt(0).toUpperCase() +
+          raw.collectedByUser.username.slice(1)
+      : "Accountant",
+    paymentDate: toISODate(new Date(raw.paymentDate)),
+    allocations,
+  };
+}
+
+function periodLabelOf(key: string): string {
+  if (key === "ANNUAL") return "Annual";
+  return key;
+}
+
+function toDiscount(raw: {
+  id: string;
+  studentFeeAssignmentId: string;
+  feeStructureItemId: string | null;
+  value: number;
+  reason: string;
+  createdAt: string;
+  studentFeeAssignment: { id: string; periodKey: string; studentEnrollmentId: string };
+  approvedByEmployee: { id: string; firstName: string; lastName: string } | null;
+}): DiscountEntry {
+  return {
+    id: raw.id,
+    enrollmentId: raw.studentFeeAssignment.studentEnrollmentId,
+    assignmentId: raw.studentFeeAssignmentId,
+    ...(raw.feeStructureItemId && { feeStructureItemId: raw.feeStructureItemId }),
+    periodLabel: periodLabelOf(raw.studentFeeAssignment.periodKey),
+    amount: Number(raw.value),
+    reason: raw.reason,
+    scope: "STUDENT",
+    approvedBy: raw.approvedByEmployee
+      ? `${raw.approvedByEmployee.firstName} ${raw.approvedByEmployee.lastName}`.trim()
+      : "Accountant",
+    createdAt: raw.createdAt,
+  };
+}
+
+function toFine(
+  raw: {
+    id: string;
+    studentFeeAssignmentId: string;
+    feeStructureItemId: string | null;
+    amount: number;
+    reason: string;
+    createdAt: string;
+    studentFeeAssignment: { id: string; periodKey: string; studentEnrollmentId: string };
+  },
+  rowsByAssignmentId: Map<string, InvoiceRow[]>,
+): FineEntry {
+  const rows = rowsByAssignmentId.get(raw.studentFeeAssignmentId) || [];
+  const representative =
+    rows.find((r) => r.feeStructureItemId === raw.feeStructureItemId) || rows[0];
+  return {
+    id: raw.id,
+    enrollmentId: raw.studentFeeAssignment.studentEnrollmentId,
+    assignmentId: raw.studentFeeAssignmentId,
+    ...(raw.feeStructureItemId && { feeStructureItemId: raw.feeStructureItemId }),
+    invoiceId: representative ? representative.id : `${raw.studentFeeAssignmentId}:`,
+    periodLabel: periodLabelOf(raw.studentFeeAssignment.periodKey),
+    reason: raw.reason,
+    amount: Number(raw.amount),
+    createdAt: raw.createdAt,
+  };
+}
+
+function toExpense(raw: {
+  id: string;
+  category: string;
+  amount: number;
+  expenseDate: string;
+  paidTo?: string | null;
+}): ExpenseEntry {
+  return {
+    id: raw.id,
+    category: raw.category,
+    amount: Number(raw.amount),
+    date: (raw.expenseDate || "").slice(0, 10),
+    paidTo: raw.paidTo || undefined,
   };
 }
 
@@ -351,12 +232,15 @@ function emptyUniverseStore(sessionId: string): FeeStoreState {
 interface FeeModuleContextType {
   loading: boolean;
   reloading: boolean;
+  error: string | null;
   session?: AcademicSession;
   sessions: AcademicSession[];
   classes: { id: string; name: string; displayOrder: number }[];
   categories: FeeCategory[];
+  paymentMethods: { id: string; name: string }[];
   students: StudentInfo[];
-  state: FeeStoreState;
+  structures: FeeStructure[];
+  expenses: ExpenseEntry[];
   derivedInvoices: InvoiceRow[];
   studentSummaries: StudentSummaryRow[];
   // helpers
@@ -364,43 +248,53 @@ interface FeeModuleContextType {
   paymentsForEnrollment: (enrollmentId: string) => Payment[];
   discountsForEnrollment: (enrollmentId: string) => DiscountEntry[];
   finesForEnrollment: (enrollmentId: string) => FineEntry[];
-  addOnsForEnrollment: (enrollmentId: string) => AddOnEntry[];
+  addOnsForEnrollment: (enrollmentId: string) => never[];
   discountsForInvoice: (invoiceId: string) => DiscountEntry[];
   finesForInvoice: (invoiceId: string) => FineEntry[];
   structureForEnrollment: (enrollmentId: string) => FeeStructure | undefined;
   studentsInClass: (className: string, classId?: string) => StudentInfo[];
   dashboardStats: (filters?: FeeFilters) => DashboardStats;
   defaulters: (filters?: FeeFilters) => DefaulterRow[];
+  reload: () => Promise<void>;
   // mutations
-  updateCategory: (cat: FeeCategory) => void;
-  addCategory: (cat: FeeCategory) => void;
-  saveStructure: (structure: FeeStructure) => void;
-  assignStructureToClass: (className: string, structureId: string) => void;
-  generateForEnrollment: (enrollmentId: string) => void;
-  generateForClass: (className: string, classId?: string) => void;
-  attachAddOn: (enrollmentId: string, categoryId: string, amount: number) => void;
-  toggleAddOn: (addOnId: string, active: boolean) => void;
+  updateCategory: (cat: FeeCategory) => Promise<void>;
+  addCategory: (cat: FeeCategory) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
+  saveStructure: (structure: FeeStructure) => Promise<void>;
+  deleteStructure: (id: string) => Promise<void>;
+  generateForEnrollment: (enrollmentId: string) => Promise<number>;
+  generateForClass: (className: string, classId?: string) => Promise<number>;
   collectPayment: (args: {
     enrollmentId: string;
     amount: number;
-    paymentMode: PaymentMode;
+    paymentMode: PaymentMode | string;
     referenceNumber?: string;
     remarks?: string;
-    receivedBy?: string;
     invoiceIds?: string[];
-  }) => { payment: Payment; rows: { invoiceId: string; label: string; amount: number; balanceAfter: number }[] } | null;
+  }) => Promise<{
+    payment: Payment;
+    rows: { invoiceId: string; label: string; amount: number; balanceAfter: number }[];
+  } | null>;
   addDiscount: (args: {
-    enrollmentId: string;
+    assignmentId: string;
+    feeStructureItemId?: string;
     amount: number;
     reason: string;
-    scope: "ROW" | "HEAD" | "STUDENT";
-    invoiceId?: string;
-    feeCategoryId?: string;
-    approvedBy?: string;
-  }) => DiscountEntry;
-  addFine: (args: { enrollmentId: string; invoiceId: string; reason: string; amount: number }) => FineEntry;
-  sendReminders: (enrollmentIds: string[], channel: ReminderChannel) => number;
-  addExpense: (exp: ExpenseEntry) => void;
+  }) => Promise<DiscountEntry>;
+  addFine: (args: {
+    assignmentId: string;
+    feeStructureItemId?: string;
+    reason: string;
+    amount: number;
+  }) => Promise<FineEntry>;
+  updateFine: (args: { id: string; amount: number; reason: string }) => Promise<FineEntry>;
+  deleteFine: (id: string) => Promise<void>;
+  addExpense: (exp: {
+    category: string;
+    amount: number;
+    date: string;
+    paidTo?: string;
+  }) => Promise<void>;
 }
 
 const FeeModuleContext = createContext<FeeModuleContextType | undefined>(undefined);
@@ -409,224 +303,188 @@ export function FeeModuleProvider({ children }: { children: React.ReactNode }) {
   const { accessToken } = useAuth();
   const [loading, setLoading] = useState(true);
   const [reloading, setReloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<AcademicSession[]>([]);
   const [classes, setClasses] = useState<{ id: string; name: string; displayOrder: number }[]>([]);
   const [students, setStudents] = useState<StudentInfo[]>([]);
   const [categories, setCategories] = useState<FeeCategory[]>([]);
-  const [state, setState] = useState<FeeStoreState | null>(null);
-  const stateRef = useRef<FeeStoreState | null>(null);
-  const stateReady = useRef(false);
+  const [paymentMethods, setPaymentMethods] = useState<{ id: string; name: string }[]>([]);
+  const [structures, setStructures] = useState<FeeStructure[]>([]);
+  const [invoiceRows, setInvoiceRows] = useState<InvoiceRow[]>([]);
+  const [summaries, setSummaries] = useState<StudentSummaryRow[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [discounts, setDiscounts] = useState<DiscountEntry[]>([]);
+  const [fines, setFines] = useState<FineEntry[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseEntry[]>([]);
 
   const session = useMemo(
     () => sessions.find((s) => s.isCurrent) || sessions[0],
     [sessions],
   );
 
-  const persist = useCallback((next: FeeStoreState) => {
+  const reload = useCallback(async () => {
+    if (!accessToken) return;
+    setReloading(true);
+    setError(null);
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(next));
-    } catch {
-      /* storage may be unavailable */
-    }
-    stateRef.current = next;
-  }, []);
+      const [s, c, catRes, methodRes] = await Promise.all([
+        getAcademicSessions(accessToken).catch(() => [] as AcademicSession[]),
+        getClasses(accessToken).catch(() => [] as SchoolClass[]),
+        listFeeCategories(accessToken).catch(() => [] as FeeCategory[]),
+        listPaymentMethods(accessToken).catch(() => [] as { id: string; name: string }[]),
+      ]);
 
-  const loadReferences = useCallback(
-    async (withRefresh: boolean) => {
-      if (withRefresh) setReloading(true);
-      let sess = sessions;
-      let cls = classes;
-      let cats = categories;
-      try {
-        const [s, c, catRes] = await Promise.all([
-          getAcademicSessions(accessToken).catch(() => [] as AcademicSession[]),
-          getClasses(accessToken).catch(() => [] as SchoolClass[]),
-          getFeeCategories(accessToken).catch(() => []),
-        ]);
-        if (s.length) sess = s;
-        if (c.length) {
-          cls = c
+      const sess = s.length ? s : sessions;
+      const cls = c.length
+        ? c
             .slice()
             .sort((a, b) => a.displayOrder - b.displayOrder)
-            .map((x) => ({ id: x.id, name: x.name, displayOrder: x.displayOrder }));
-        }
-        if (catRes.length) {
-          cats = catRes.map((x) => toFeeCategory(x) as FeeCategory);
-        }
-        setSessions(sess);
-        setClasses(cls);
-        setCategories(cats);
+            .map((x) => ({ id: x.id, name: x.name, displayOrder: x.displayOrder }))
+        : classes;
+      const cats = catRes.length ? catRes : categories;
+      const methods = methodRes.length ? methodRes : paymentMethods;
 
-        // Fetch students only after the session is resolved so the backend
-        // returns enrollment (class/section) data for that session.
-        const activeSession = sess.find((x) => x.isCurrent) || sess[0];
-        const stuRes = await getStudents(accessToken, {
-          academicSessionId: activeSession?.id,
-        }).catch(() => [] as Awaited<ReturnType<typeof getStudents>>);
+      setSessions(sess);
+      setClasses(cls);
+      setCategories(cats);
+      setPaymentMethods(methods);
 
-        const mapped: StudentInfo[] = stuRes.map((s) => ({
-          enrollmentId: s.enrollment?.id || s.id,
-          studentId: s.id,
-          admissionNumber: s.admissionNumber,
-          firstName: s.firstName,
-          lastName: s.lastName,
-          gender: s.gender,
-          className: (s.enrollment?.class?.name || "").trim(),
-          classId: s.enrollment?.class?.id || "",
-          sectionName: s.enrollment?.section?.name || "",
-          rollNumber: s.enrollment?.rollNumber || null,
-          parentName: "",
-          parentPhone: "",
-          parentEmail: "",
-          enrolledOn: s.enrollment?.enrollmentDate || s.admissionDate || toISODate(isoToDate(activeSession?.startDate || "")),
-          avatar: s.photoUrl,
-        }));
-        setStudents(mapped);
-      } catch {
-        setClasses(cls.length ? cls : []);
-      } finally {
-        setLoading(false);
-        setReloading(false);
-      }
-    },
-    [accessToken],
-  );
+      const activeSession = sess.find((x) => x.isCurrent) || sess[0];
+      if (!activeSession) return;
 
-  // Initial load
+      const sessionId = activeSession.id;
+
+      const [stuRes, structRes, rowRes, summaryRes, colRes, discRes, fineRes, expRes] =
+        await Promise.all([
+          getStudents(accessToken, { academicSessionId: sessionId }).catch(() => []),
+          listFeeStructures({ academicSessionId: sessionId }, accessToken).catch(() => []),
+          listInvoiceRows({ academicSessionId: sessionId }, accessToken).catch(() => []),
+          listStudentSummaries({ academicSessionId: sessionId }, accessToken).catch(() => []),
+          listFeeCollections({}, accessToken).catch(() => []),
+          listFeeDiscounts({}, accessToken).catch(() => []),
+          listFeeFines({}, accessToken).catch(() => []),
+          listExpenses({}, accessToken).catch(() => []),
+        ]);
+
+      const mappedStudents: StudentInfo[] = stuRes.map((sr) => ({
+        enrollmentId: sr.enrollment?.id || sr.id,
+        studentId: sr.id,
+        admissionNumber: sr.admissionNumber,
+        firstName: sr.firstName,
+        lastName: sr.lastName,
+        gender: sr.gender,
+        className: (sr.enrollment?.class?.name || "").trim(),
+        classId: sr.enrollment?.class?.id || "",
+        sectionName: sr.enrollment?.section?.name || "",
+        rollNumber: sr.enrollment?.rollNumber || null,
+        parentName: "",
+        parentPhone: "",
+        parentEmail: "",
+        enrolledOn:
+          sr.enrollment?.enrollmentDate || sr.admissionDate || toISODate(isoToDate(activeSession?.startDate || "")),
+        avatar: sr.photoUrl,
+      }));
+
+      setStudents(mappedStudents);
+      setStructures(structRes.map(toFeeStructure));
+      setInvoiceRows(rowRes.map(toInvoiceRow));
+      setSummaries(summaryRes as StudentSummaryRow[]);
+      setPayments(colRes.map(toPayment));
+      setDiscounts(discRes.map(toDiscount));
+      setFines(finesFor(fineRes, rowRes.map(toInvoiceRow)));
+      setExpenses(expRes.map(toExpense));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load fee data");
+    } finally {
+      setLoading(false);
+      setReloading(false);
+    }
+  }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const initialized = useRef(false);
-  if (!initialized.current) {
-    initialized.current = true;
-    void loadReferences(false);
-  }
-
-  // Bootstrap store once the active session is known
-  if (!state && !loading && session) {
-    let storedRaw: string | null = null;
-    try {
-      storedRaw = localStorage.getItem(STORE_KEY);
-    } catch {
-      storedRaw = null;
+  useEffect(() => {
+    if (!initialized.current && accessToken) {
+      initialized.current = true;
+      void reload();
     }
-    let next: FeeStoreState | null = null;
-    if (storedRaw) {
-      try {
-        const parsed = JSON.parse(storedRaw) as FeeStoreState;
-        if (parsed.version === STORE_VERSION && parsed.sessionId === session.id) next = parsed;
-      } catch {
-        next = null;
-      }
-    }
-    if (!next) {
-      next = emptyUniverseStore(session.id);
-    }
-    stateRef.current = next;
-    stateReady.current = true;
-    persist(next);
-    setState(next);
-  }
+  }, [accessToken, reload]);
 
-  // Derived
-  const today = useMemo(() => new Date(), []);
-  const derivedInvoices = useMemo(() => {
-    if (!state) return [];
-    return deriveInvoices(state.invoices, state.discounts, state.fines, state.payments, today);
-  }, [state, today]);
-
-  const studentSummaries = useMemo<StudentSummaryRow[]>(() => {
-    const map = new Map<string, InvoiceRow[]>();
-    for (const r of derivedInvoices) {
-      const arr = map.get(r.enrollmentId) || [];
+  function finesFor(
+    fineRes: Awaited<ReturnType<typeof listFeeFines>>,
+    rows: InvoiceRow[],
+  ): FineEntry[] {
+    const rowsByAssignmentId = new Map<string, InvoiceRow[]>();
+    for (const r of rows) {
+      const arr = rowsByAssignmentId.get(r.assignmentId) || [];
       arr.push(r);
-      map.set(r.enrollmentId, arr);
+      rowsByAssignmentId.set(r.assignmentId, arr);
     }
-    const byStudent = new Map<string, StudentInfo>(students.map((s) => [s.enrollmentId, s]));
-    const byEnrollmentPayments = new Map<string, string>();
-    for (const p of state?.payments || []) {
-      const prev = byEnrollmentPayments.get(p.enrollmentId);
-      if (!prev || p.paymentDate > prev) byEnrollmentPayments.set(p.enrollmentId, p.paymentDate);
-    }
-    const out: StudentSummaryRow[] = [];
-    for (const [enrollmentId, rows] of map) {
-      const stu = byStudent.get(enrollmentId);
-      const overdue = rows.filter((r) => r.status === "OVERDUE");
-      const hasOverdue = overdue.length > 0;
-      const balance = sumBalance(rows);
-      const paid = sumPaid(rows);
-      let status: SummaryStatus;
-      if (balance <= 0) status = "PAID";
-      else if (hasOverdue) status = "OVERDUE";
-      else if (paid > 0) status = "PARTIAL";
-      else status = "NONE";
-      out.push({
-        enrollmentId,
-        studentName: stu ? `${stu.firstName} ${stu.lastName}` : "Unknown Student",
-        admissionNumber: stu?.admissionNumber || "-",
-        className: stu?.className || "-",
-        sectionName: stu?.sectionName || "-",
-        rollNumber: stu?.rollNumber || null,
-        parentName: stu?.parentName || "",
-        parentPhone: stu?.parentPhone || "",
-        parentEmail: stu?.parentEmail || "",
-        totalDue: round2(sumPayable(rows)),
-        paid: round2(paid),
-        balance: round2(balance),
-        discountTotal: round2(rows.reduce((s, r) => s + r.discountAmount, 0)),
-        fineTotal: round2(rows.reduce((s, r) => s + (state?.fines || []).filter((f) => f.invoiceId === r.id).reduce((x, f) => x + f.amount, 0), 0)),
-        status,
-        overdueCount: overdue.length,
-        overdueAmount: round2(overdue.reduce((s, r) => s + r.balance, 0)),
-        lastPaymentDate: byEnrollmentPayments.get(enrollmentId),
-      });
-    }
-    return out.sort((a, b) => a.className.localeCompare(b.className) || a.studentName.localeCompare(b.studentName));
-  }, [derivedInvoices, students, state]);
+    return fineRes.map((f) => toFine(f, rowsByAssignmentId));
+  }
 
+  // ── derived memo ────────────────────────────────────────────────────
   const studentInfoMap = useMemo(
     () => new Map(students.map((s) => [s.enrollmentId, s])),
     [students],
   );
 
+  const derivedInvoices = invoiceRows;
+
+  const studentSummaries = summaries;
+
   // ── selectors ───────────────────────────────────────────────────────
   const invoicesForEnrollment = useCallback(
     (enrollmentId: string) =>
-      derivedInvoices.filter((r) => r.enrollmentId === enrollmentId).sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+      derivedInvoices
+        .filter((r) => r.enrollmentId === enrollmentId)
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
     [derivedInvoices],
   );
   const paymentsForEnrollment = useCallback(
     (enrollmentId: string) =>
-      (state?.payments || [])
+      payments
         .filter((p) => p.enrollmentId === enrollmentId)
         .sort((a, b) => b.paymentDate.localeCompare(a.paymentDate)),
-    [state],
+    [payments],
   );
   const discountsForEnrollment = useCallback(
     (enrollmentId: string) =>
-      (state?.discounts || []).filter((d) => d.enrollmentId === enrollmentId).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-    [state],
+      discounts
+        .filter((d) => d.enrollmentId === enrollmentId)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    [discounts],
   );
   const finesForEnrollment = useCallback(
     (enrollmentId: string) =>
-      (state?.fines || []).filter((f) => f.enrollmentId === enrollmentId).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-    [state],
+      fines
+        .filter((f) => f.enrollmentId === enrollmentId)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    [fines],
   );
+  const addOnsForEnrollment = useCallback((_enrollmentId: string) => [] as never[], []);
   const discountsForInvoice = useCallback(
-    (invoiceId: string) => (state?.discounts || []).filter((d) => d.invoiceId === invoiceId),
-    [state],
+    (invoiceId: string) => {
+      const assignmentId = invoiceId.split(":")[0];
+      return discounts.filter((d) => d.assignmentId === assignmentId);
+    },
+    [discounts],
   );
   const finesForInvoice = useCallback(
-    (invoiceId: string) => (state?.fines || []).filter((f) => f.invoiceId === invoiceId),
-    [state],
-  );
-  const addOnsForEnrollment = useCallback(
-    (enrollmentId: string) => (state?.addOns || []).filter((a) => a.enrollmentId === enrollmentId),
-    [state],
+    (invoiceId: string) => {
+      const assignmentId = invoiceId.split(":")[0];
+      return fines.filter((f) => f.assignmentId === assignmentId);
+    },
+    [fines],
   );
   const structureForEnrollment = useCallback(
     (enrollmentId: string) => {
-      const asg = state?.assignments.find((a) => a.enrollmentId === enrollmentId);
-      return state?.structures.find((s) => s.id === asg?.structureId);
+      const stu = studentInfoMap.get(enrollmentId);
+      if (!stu?.classId || !session) return undefined;
+      return structures.find(
+        (s) => s.classId === stu.classId && s.academicSessionId === session.id,
+      );
     },
-    [state],
+    [studentInfoMap, structures, session],
   );
   const studentsInClass = useCallback(
     (className: string, classId?: string) =>
@@ -636,11 +494,20 @@ export function FeeModuleProvider({ children }: { children: React.ReactNode }) {
     [students],
   );
 
-  // ── dashboard stats ─────────────────────────────────────────────────
+  // ── dashboard stats (computed from live API data) ──────────────────
+  const today = useMemo(() => new Date(), []);
+  const monthKeyOfDate = useCallback((d: Date) => {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }, []);
+  const monthLabelOf = useCallback((key: string) => {
+    const [y, m] = key.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+  }, []);
+
   const dashboardStats = useCallback(
     (filters?: FeeFilters): DashboardStats => {
       const rows = derivedInvoices.filter((r) => {
-        if (filters?.className && r.enrollmentId && !studentInfoMap.get(r.enrollmentId)?.className.includes(filters.className) && studentInfoMap.get(r.enrollmentId)?.className !== filters.className) {
+        if (filters?.className) {
           const s = studentInfoMap.get(r.enrollmentId);
           if (s?.className !== filters.className) return false;
         }
@@ -648,33 +515,37 @@ export function FeeModuleProvider({ children }: { children: React.ReactNode }) {
         return true;
       });
       const classOf = (enrollmentId: string) => studentInfoMap.get(enrollmentId)?.className || "-";
-      const collected = round2(sumPaid(rows));
-      const totalDue = round2(sumPayable(rows));
-      const pending = round2(sumBalance(rows));
+      const collected = round2(rows.reduce((s, r) => s + r.paidAmount, 0));
+      const totalDue = round2(rows.reduce((s, r) => s + r.payableAmount, 0));
+      const pending = round2(rows.reduce((s, r) => s + r.balance, 0));
       const overdueRows = rows.filter((r) => r.status === "OVERDUE");
       const totalOverdue = round2(overdueRows.reduce((s, r) => s + r.balance, 0));
       const collectionRate = totalDue > 0 ? (collected / totalDue) * 100 : 0;
 
-      const summaries = studentSummaries.filter((s) => {
+      const scopedSummaries = studentSummaries.filter((s) => {
         if (filters?.className && s.className !== filters.className) return false;
         return true;
       });
-      const paidStudents = summaries.filter((s) => s.status === "PAID").length;
-      const partialStudents = summaries.filter((s) => s.status === "PARTIAL").length;
-      const overdueStudents = summaries.filter((s) => s.status === "OVERDUE").length;
-      const pendingStudents = summaries.filter((s) => s.status === "NONE").length;
+      const paidStudents = scopedSummaries.filter((s) => s.status === "PAID").length;
+      const partialStudents = scopedSummaries.filter((s) => s.status === "PARTIAL").length;
+      const overdueStudents = scopedSummaries.filter((s) => s.status === "OVERDUE").length;
+      const pendingStudents = scopedSummaries.filter((s) => s.status === "NONE").length;
 
-      // monthly collected over last 6 months
       const monthBuckets: { key: string; collected: number; pending: number }[] = [];
       for (let i = 5; i >= 0; i -= 1) {
         const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
         const key = monthKeyOfDate(d);
         monthBuckets.push({ key, collected: 0, pending: 0 });
       }
-      for (const p of state?.payments || []) {
+      for (const p of payments) {
         const pdate = isoToDate(p.paymentDate);
         const key = monthKeyOfDate(pdate);
-        const bucket = monthBuckets.find((b) => b.key === key && (filters?.from ? pdate >= isoToDate(filters.from) : true) && (filters?.to ? pdate <= isoToDate(filters.to) : true));
+        const bucket = monthBuckets.find(
+          (b) =>
+            b.key === key &&
+            (filters?.from ? pdate >= isoToDate(filters.from) : true) &&
+            (filters?.to ? pdate <= isoToDate(filters.to) : true),
+        );
         if (bucket) bucket.collected = round2(bucket.collected + p.amount);
       }
       for (const r of rows) {
@@ -683,7 +554,6 @@ export function FeeModuleProvider({ children }: { children: React.ReactNode }) {
         if (bucket) bucket.pending = round2(bucket.pending + r.balance);
       }
 
-      // class-wise
       const classMap = new Map<string, { collected: number; total: number }>();
       for (const r of rows) {
         const name = classOf(r.enrollmentId);
@@ -696,10 +566,14 @@ export function FeeModuleProvider({ children }: { children: React.ReactNode }) {
         .map(([name, v]) => ({ name, collected: v.collected, total: v.total }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
-      // category-wise
       const catMap = new Map<string, { name: string; code: string; collected: number; total: number }>();
       for (const r of rows) {
-        const cur = catMap.get(r.feeCategoryId) || { name: r.categoryLabel, code: r.feeCategoryId, collected: 0, total: 0 };
+        const cur = catMap.get(r.feeCategoryId) || {
+          name: r.categoryLabel,
+          code: r.categoryCode,
+          collected: 0,
+          total: 0,
+        };
         cur.name = r.categoryLabel;
         cur.total = round2(cur.total + r.payableAmount);
         cur.collected = round2(cur.collected + r.paidAmount);
@@ -707,7 +581,7 @@ export function FeeModuleProvider({ children }: { children: React.ReactNode }) {
       }
       const collectedByCategory = Array.from(catMap.values()).sort((a, b) => b.total - a.total);
 
-      const recentPayments = (state?.payments || [])
+      const recentPayments = payments
         .filter((p) => {
           const pd = isoToDate(p.paymentDate);
           return (
@@ -720,7 +594,11 @@ export function FeeModuleProvider({ children }: { children: React.ReactNode }) {
         .slice(0, 8)
         .map((p) => {
           const s = studentInfoMap.get(p.enrollmentId);
-          return { ...p, studentName: s ? `${s.firstName} ${s.lastName}` : "Student", className: classOf(p.enrollmentId) };
+          return {
+            ...p,
+            studentName: s ? `${s.firstName} ${s.lastName}` : "Student",
+            className: classOf(p.enrollmentId),
+          };
         });
 
       return {
@@ -734,13 +612,17 @@ export function FeeModuleProvider({ children }: { children: React.ReactNode }) {
         partialStudents,
         overdueStudents,
         pendingStudents,
-        collectedByMonth: monthBuckets.map((b) => ({ ...b, month: monthLabelOf(b.key), monthKey: b.key })),
+        collectedByMonth: monthBuckets.map((b) => ({
+          ...b,
+          month: monthLabelOf(b.key),
+          monthKey: b.key,
+        })),
         collectedByClass,
         collectedByCategory,
         recentPayments,
       };
     },
-    [derivedInvoices, state, today, studentInfoMap, studentSummaries],
+    [derivedInvoices, payments, studentSummaries, studentInfoMap, today, monthKeyOfDate, monthLabelOf],
   );
 
   const defaulters = useCallback(
@@ -769,314 +651,321 @@ export function FeeModuleProvider({ children }: { children: React.ReactNode }) {
   );
 
   // ── mutations ───────────────────────────────────────────────────────
-  const updateState = useCallback(
-    (updater: (prev: FeeStoreState) => FeeStoreState) => {
-      setState((prev) => {
-        if (!prev) return prev;
-        const next = updater(prev);
-        persist(next);
-        return next;
-      });
+  const refetchAll = useCallback(async () => {
+    await reload();
+  }, [reload]);
+
+  const updateCategory = useCallback(
+    async (cat: FeeCategory) => {
+      const { id: _id, ...data } = cat;
+      await updateFeeCategory(cat.id, data, accessToken);
+      await refetchAll();
     },
-    [persist],
+    [accessToken, refetchAll],
   );
 
-  const updateCategory = useCallback((cat: FeeCategory) => {
-    setCategories((prev) => prev.map((c) => (c.id === cat.id ? cat : c)));
-  }, []);
+  const addCategory = useCallback(
+    async (cat: FeeCategory) => {
+      const { id: _id, ...data } = cat;
+      await createFeeCategory(data, accessToken);
+      await refetchAll();
+    },
+    [accessToken, refetchAll],
+  );
 
-  const addCategory = useCallback((cat: FeeCategory) => {
-    setCategories((prev) => [...prev, cat]);
-  }, []);
-
-  const regenerateFor =
-    (enrollmentId: string) =>
-    (prev: FeeStoreState): FeeStoreState => {
-      const en = studentInfoMap.get(enrollmentId);
-      if (!en || !session) return prev;
-      const asg = prev.assignments.find((a) => a.enrollmentId === enrollmentId);
-      const st = prev.structures.find((s) => s.id === asg?.structureId);
-      if (!st) return prev;
-      const addOns = prev.addOns.filter((a) => a.enrollmentId === enrollmentId);
-      const newRows = generateRowsForEnrollment(en, st, addOns, categories, isoToDate(session.startDate), today);
-      return { ...prev, invoices: mergeRows(newRows, prev.invoices) };
-    };
+  const deleteCategory = useCallback(
+    async (id: string) => {
+      await deleteFeeCategory(id, accessToken);
+      await refetchAll();
+    },
+    [accessToken, refetchAll],
+  );
 
   const saveStructure = useCallback(
-    (structure: FeeStructure) => {
-      updateState((prev) => {
-        const exists = prev.structures.some((s) => s.id === structure.id);
-        const structures = exists
-          ? prev.structures.map((s) => (s.id === structure.id ? structure : s))
-          : [...prev.structures, structure];
-        let next: FeeStoreState = { ...prev, structures };
-        // regenerate every enrollment that uses this structure
-        for (const asg of prev.assignments) {
-          if (asg.structureId === structure.id) next = regenerateFor(asg.enrollmentId)(next);
-        }
-        return next;
-      });
+    async (structure: FeeStructure) => {
+      const items = structure.items.map((i) => ({
+        feeCategoryId: i.feeCategoryId,
+        amount: i.amount,
+        dueDay: i.dueDay,
+        lateFeeAmount: i.lateFeeAmount,
+        gracePeriodDays: i.gracePeriodDays,
+      }));
+      const isExisting = !String(structure.id).startsWith("struct_draft_");
+      if (isExisting) {
+        await updateFeeStructure(
+          structure.id,
+          { name: structure.name, isActive: structure.isActive, items },
+          accessToken,
+        );
+      } else {
+        await createFeeStructure(
+          {
+            name: structure.name,
+            classId: structure.classId,
+            academicSessionId: structure.academicSessionId,
+            isActive: structure.isActive,
+            items,
+          },
+          accessToken,
+        );
+      }
+      await refetchAll();
     },
-    [updateState, regenerateFor],
+    [accessToken, refetchAll],
   );
 
-  const assignStructureToClass = useCallback(
-    (className: string, structureId: string) => {
-      updateState((prev) => {
-        const structure = prev.structures.find((s) => s.id === structureId);
-        if (!structure) return prev;
-        const targetStudents = students.filter(
-          (s) =>
-            s.className === className ||
-            (structure.classId && s.classId && s.classId === structure.classId),
-        );
-        if (!targetStudents.length) return prev;
-        const assignments = [...prev.assignments];
-        let invoices = [...prev.invoices];
-        for (const s of targetStudents) {
-          const existing = assignments.find((a) => a.enrollmentId === s.enrollmentId);
-          if (existing && existing.structureId === structureId) continue;
-          if (existing) {
-            assignments[assignments.indexOf(existing)] = {
-              ...existing,
-              structureId,
-              assignedAt: toISODate(today),
-            };
-          } else {
-            assignments.push({
-              id: `assign_${s.enrollmentId}_${structureId}`,
-              enrollmentId: s.enrollmentId,
-              structureId,
-              assignedAt: toISODate(today),
-            });
-          }
-          const addOns = prev.addOns.filter((a) => a.enrollmentId === s.enrollmentId);
-          const newRows = generateRowsForEnrollment(s, structure, addOns, categories, isoToDate(session!.startDate), today);
-          invoices = mergeRows(newRows, invoices);
-        }
-        return { ...prev, assignments, invoices };
-      });
+  const deleteStructure = useCallback(
+    async (id: string) => {
+      await deleteFeeStructure(id, accessToken);
+      await refetchAll();
     },
-    [updateState, students, categories, session],
+    [accessToken, refetchAll],
   );
 
   const generateForEnrollment = useCallback(
-    (enrollmentId: string) => updateState(regenerateFor(enrollmentId)),
-    [updateState, regenerateFor],
+    async (enrollmentId: string) => {
+      if (!session) return 0;
+      const stu = studentInfoMap.get(enrollmentId);
+      const classId = stu?.classId;
+      if (!classId) return 0;
+      const res = await generateFees(
+        { academicSessionId: session.id, classId },
+        accessToken,
+      );
+      await refetchAll();
+      return res.generated || 0;
+    },
+    [session, studentInfoMap, accessToken, refetchAll],
   );
 
   const generateForClass = useCallback(
-    (className: string, classId?: string) => {
-      updateState((prev) => {
-        let next: FeeStoreState = prev;
-        for (const s of students.filter(
-          (x) => x.className === className || (classId && x.classId === classId),
-        )) {
-          next = regenerateFor(s.enrollmentId)(next);
-        }
-        return next;
-      });
+    async (className: string, requestedClassId?: string) => {
+      if (!session) return 0;
+      const classId =
+        requestedClassId ||
+        classes.find((c) => c.name === className)?.id ||
+        students.find((s) => s.className === className)?.classId;
+      if (!classId) return 0;
+      const res = await generateFees(
+        { academicSessionId: session.id, classId },
+        accessToken,
+      );
+      await refetchAll();
+      return res.generated || 0;
     },
-    [updateState, students, regenerateFor],
-  );
-
-  const attachAddOn = useCallback(
-    (enrollmentId: string, categoryId: string, amount: number) => {
-      const cat = categories.find((c) => c.id === categoryId);
-      if (!cat) return;
-      updateState((prev) => {
-        const existing = prev.addOns.find(
-          (a) => a.enrollmentId === enrollmentId && a.feeCategoryId === categoryId && a.active,
-        );
-        let addOns = prev.addOns;
-        if (existing) return prev;
-        const entry: AddOnEntry = {
-          id: uid("addon"),
-          enrollmentId,
-          feeCategoryId: categoryId,
-          amount,
-          dueDay: 10,
-          gracePeriodDays: 5,
-          lateFeeAmount: cat.recurringInterval === "ONCE" ? 0 : 100,
-          proratable: cat.recurringInterval === "MONTHLY",
-          active: true,
-          attachedAt: toISODate(today),
-        };
-        addOns = [...prev.addOns, entry];
-        let next: FeeStoreState = { ...prev, addOns };
-        next = regenerateFor(enrollmentId)(next);
-        return next;
-      });
-    },
-    [updateState, categories, today, regenerateFor],
-  );
-
-  const toggleAddOn = useCallback(
-    (addOnId: string, active: boolean) => {
-      updateState((prev) => {
-        const addOns = prev.addOns.map((a) => (a.id === addOnId ? { ...a, active } : a));
-        let next: FeeStoreState = { ...prev, addOns };
-        const entry = prev.addOns.find((a) => a.id === addOnId);
-        if (entry) next = regenerateFor(entry.enrollmentId)(next);
-        return next;
-      });
-    },
-    [updateState, regenerateFor],
+    [session, classes, students, accessToken, refetchAll],
   );
 
   const collectPayment = useCallback(
-    (args: {
+    async (args: {
       enrollmentId: string;
       amount: number;
-      paymentMode: PaymentMode;
+      paymentMode: PaymentMode | string;
       referenceNumber?: string;
       remarks?: string;
-      receivedBy?: string;
       invoiceIds?: string[];
     }) => {
-      const amount = round2(Math.min(args.amount, 0) ? 0 : args.amount);
+      const amount = round2(args.amount);
       if (amount <= 0) return null;
       let candidates = derivedInvoices
         .filter((r) => r.enrollmentId === args.enrollmentId && r.balance > 0)
         .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
       if (args.invoiceIds?.length) {
-        candidates = candidates.filter((r) => args.invoiceIds!.includes(r.id)).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+        candidates = candidates
+          .filter((r) => args.invoiceIds!.includes(r.id))
+          .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
       }
-      const allocations: PaymentAllocation[] = [];
-      let remaining = amount;
-      for (const r of candidates) {
-        if (remaining <= 0) break;
-        const applied = Math.min(remaining, r.balance);
-        if (applied > 0) allocations.push({ invoiceId: r.id, amount: round2(applied) });
-        remaining = round2(remaining - applied);
-      }
-      if (!allocations.length) return null;
+      if (!candidates.length) return null;
 
-      const totalAllocated = round2(allocations.reduce((s2, a) => s2 + a.amount, 0));
-      const counter = (stateRef.current?.receiptCounter || 0) + 1;
-      const yearStart = isoToDate(session!.startDate).getFullYear();
-      const payment: Payment = {
-        id: uid("pay"),
-        receiptNumber: receiptNumber(String(yearStart), counter),
-        enrollmentId: args.enrollmentId,
-        amount: totalAllocated,
-        paymentMode: args.paymentMode,
-        referenceNumber: args.referenceNumber,
-        remarks: args.remarks,
-        receivedBy: args.receivedBy || "Accountant",
-        paymentDate: toISODate(today),
-        allocations,
-      };
-      updateState((prev) => ({
-        ...prev,
-        payments: [...prev.payments, payment],
-        receiptCounter: counter,
-      }));
-      const rows = allocations.map((a) => {
-        const inv = derivedInvoices.find((r) => r.id === a.invoiceId);
+      const byHead = new Map<
+        string,
+        { assignmentId: string; feeStructureItemId?: string; max: number; dueDate: string }
+      >();
+      for (const r of candidates) {
+        const key = r.feeStructureItemId
+          ? `${r.assignmentId}:${r.feeStructureItemId}`
+          : r.assignmentId;
+        const cur =
+          byHead.get(key) || {
+            assignmentId: r.assignmentId,
+            feeStructureItemId: r.feeStructureItemId,
+            max: 0,
+            dueDate: r.dueDate,
+          };
+        cur.max = round2(cur.max + r.balance);
+        if (r.dueDate < cur.dueDate) cur.dueDate = r.dueDate;
+        byHead.set(key, cur);
+      }
+      const ordered = Array.from(byHead.values()).sort(
+        (a, b) => a.dueDate.localeCompare(b.dueDate),
+      );
+
+      const items: {
+        studentFeeAssignmentId: string;
+        feeStructureItemId?: string;
+        amount: number;
+      }[] = [];
+      let remaining = amount;
+      for (const cfg of ordered) {
+        if (remaining <= 0) break;
+        const applied = round2(Math.min(remaining, cfg.max));
+        if (applied > 0) {
+          items.push({
+            studentFeeAssignmentId: cfg.assignmentId,
+            ...(cfg.feeStructureItemId
+              ? { feeStructureItemId: cfg.feeStructureItemId }
+              : {}),
+            amount: applied,
+          });
+          remaining = round2(remaining - applied);
+        }
+      }
+      if (!items.length) return null;
+      if (remaining > 0) return null;
+
+      const raw = await createFeeCollection(
+        {
+          studentEnrollmentId: args.enrollmentId,
+          items,
+          paymentMode: args.paymentMode,
+          ...(args.referenceNumber && { referenceNumber: args.referenceNumber }),
+          ...(args.remarks && { remarks: args.remarks }),
+        },
+        accessToken,
+      );
+
+      const payment = toPayment(raw);
+      const rows = raw.feeCollectionItems.map((i) => {
+        const invoiceId = `${i.studentFeeAssignment.id}:${i.feeStructureItem.id}`;
+        const inv = derivedInvoices.find((r) => r.id === invoiceId);
+        const amt = Number(i.amountPaid);
         return {
-          invoiceId: a.invoiceId,
-          label: inv ? `${inv.categoryLabel} · ${inv.periodLabel}` : a.invoiceId,
-          amount: a.amount,
-          balanceAfter: round2(Math.max(0, (inv?.balance || 0) - a.amount)),
+          invoiceId,
+          label: inv ? invoiceLabel(inv) : invoiceId,
+          amount: amt,
+          balanceAfter: inv ? round2(Math.max(0, inv.balance - amt)) : 0,
         };
       });
+
+      void refetchAll();
       return { payment, rows };
     },
-    [derivedInvoices, updateState, session, today],
+    [derivedInvoices, accessToken, refetchAll],
   );
 
   const addDiscount = useCallback(
-    (args: {
-      enrollmentId: string;
-      amount: number;
-      reason: string;
-      scope: "ROW" | "HEAD" | "STUDENT";
-      invoiceId?: string;
-      feeCategoryId?: string;
-      approvedBy?: string;
-    }) => {
-      const entry: DiscountEntry = {
-        id: uid("disc"),
-        enrollmentId: args.enrollmentId,
-        invoiceId: args.invoiceId,
-        feeCategoryId: args.feeCategoryId,
-        amount: round2(args.amount),
-        reason: args.reason,
-        scope: args.scope,
-        approvedBy: args.approvedBy || "Accountant",
-        createdAt: new Date().toISOString(),
-      };
-      updateState((prev) => ({ ...prev, discounts: [...prev.discounts, entry] }));
-      return entry;
+    async (args: { assignmentId: string; feeStructureItemId?: string; amount: number; reason: string }) => {
+      const raw = await createFeeDiscount(
+        {
+          studentFeeAssignmentId: args.assignmentId,
+          ...(args.feeStructureItemId ? { feeStructureItemId: args.feeStructureItemId } : {}),
+          amount: round2(args.amount),
+          reason: args.reason,
+        },
+        accessToken,
+      );
+      const row = args.feeStructureItemId
+        ? derivedInvoices.find(
+            (r) => r.assignmentId === args.assignmentId && r.feeStructureItemId === args.feeStructureItemId,
+          )
+        : derivedInvoices.find((r) => r.assignmentId === args.assignmentId);
+      const entry = toDiscount({
+        id: raw.id,
+        studentFeeAssignmentId: raw.studentFeeAssignmentId,
+        feeStructureItemId: raw.feeStructureItemId,
+        value: raw.value,
+        reason: raw.reason,
+        createdAt: raw.createdAt,
+        studentFeeAssignment: raw.studentFeeAssignment,
+        approvedByEmployee: raw.approvedByEmployee,
+      });
+      await refetchAll();
+      return { ...entry, periodLabel: row ? row.periodLabel : entry.periodLabel };
     },
-    [updateState],
+    [derivedInvoices, accessToken, refetchAll],
   );
 
   const addFine = useCallback(
-    (args: { enrollmentId: string; invoiceId: string; reason: string; amount: number }) => {
-      const entry: FineEntry = {
-        id: uid("fine"),
-        enrollmentId: args.enrollmentId,
-        invoiceId: args.invoiceId,
-        reason: args.reason,
-        amount: round2(args.amount),
-        createdAt: new Date().toISOString(),
-      };
-      updateState((prev) => ({ ...prev, fines: [...prev.fines, entry] }));
-      return entry;
+    async (args: { assignmentId: string; feeStructureItemId?: string; reason: string; amount: number }) => {
+      const raw = await createFeeFine(
+        {
+          studentFeeAssignmentId: args.assignmentId,
+          ...(args.feeStructureItemId ? { feeStructureItemId: args.feeStructureItemId } : {}),
+          amount: round2(args.amount),
+          reason: args.reason,
+        },
+        accessToken,
+      );
+      const row = args.feeStructureItemId
+        ? derivedInvoices.find(
+            (r) => r.assignmentId === args.assignmentId && r.feeStructureItemId === args.feeStructureItemId,
+          )
+        : derivedInvoices.find((r) => r.assignmentId === args.assignmentId);
+      const entry = toFine(raw, new Map([[args.assignmentId, row ? [row] : []]]));
+      await refetchAll();
+      return { ...entry, periodLabel: row ? row.periodLabel : entry.periodLabel };
     },
-    [updateState],
+    [derivedInvoices, accessToken, refetchAll],
   );
 
-  const sendReminders = useCallback(
-    (enrollmentIds: string[], channel: ReminderChannel): number => {
-      let count = 0;
-      updateState((prev) => {
-        const logs: ReminderLog[] = [];
-        for (const id of enrollmentIds) {
-          const s = studentInfoMap.get(id);
-          if (!s) continue;
-          const rows = derivedInvoices.filter((r) => r.enrollmentId === id && r.balance > 0);
-          if (!rows.length) continue;
-          const hasOverdue = rows.some((r) => r.status === "OVERDUE");
-          const hasPreDue = rows.some((r) => r.status === "PENDING" && isoToDate(r.dueDate).getTime() - today.getTime() <= 7 * 86400000);
-          const type = hasOverdue ? "DEFAULTER" : hasPreDue ? "PRE_DUE" : "POST_DUE";
-          logs.push({
-            id: uid("rem"),
-            enrollmentId: id,
-            channel,
-            type,
-            sentAt: today.toISOString(),
-            to: s.parentPhone || s.parentEmail,
-          });
-        }
-        count = logs.length;
-        return { ...prev, reminders: [...prev.reminders, ...logs] };
-      });
-      return count;
+  const updateFine = useCallback(
+    async (args: { id: string; amount: number; reason: string }) => {
+      const raw = await updateFeeFine(
+        args.id,
+        { amount: round2(args.amount), reason: args.reason },
+        accessToken,
+      );
+      const assignmentRows = derivedInvoices.filter(
+        (r) => r.assignmentId === raw.studentFeeAssignmentId,
+      );
+      const rowsByAssignmentId = new Map<string, InvoiceRow[]>();
+      if (assignmentRows.length) {
+        rowsByAssignmentId.set(raw.studentFeeAssignmentId, assignmentRows);
+      }
+      const entry = toFine(raw, rowsByAssignmentId);
+      await refetchAll();
+      return entry;
     },
-    [updateState, derivedInvoices, studentInfoMap, today],
+    [derivedInvoices, accessToken, refetchAll],
+  );
+
+  const deleteFine = useCallback(
+    async (id: string) => {
+      await deleteFeeFine(id, accessToken);
+      await refetchAll();
+    },
+    [accessToken, refetchAll],
   );
 
   const addExpense = useCallback(
-    (exp: ExpenseEntry) => {
-      updateState((prev) => ({ ...prev, expenses: [exp, ...prev.expenses] }));
+    async (exp: { category: string; amount: number; date: string; paidTo?: string }) => {
+      await createExpense(
+        {
+          category: exp.category,
+          amount: round2(exp.amount),
+          expenseDate: exp.date,
+          ...(exp.paidTo && { paidTo: exp.paidTo }),
+        },
+        accessToken,
+      );
+      await refetchAll();
     },
-    [updateState],
+    [accessToken, refetchAll],
   );
 
-
-  const value: FeeModuleContextType = useMemo(() => {
-    return {
+  const value: FeeModuleContextType = useMemo(
+    () => ({
       loading,
       reloading,
+      error,
       session,
       sessions,
       classes,
       categories,
+      paymentMethods,
       students,
-      state: state || emptyUniverseStore(session?.id || "none"),
+      structures,
+      expenses,
       derivedInvoices,
       studentSummaries,
       invoicesForEnrollment,
@@ -1090,56 +979,62 @@ export function FeeModuleProvider({ children }: { children: React.ReactNode }) {
       studentsInClass,
       dashboardStats,
       defaulters,
+      reload,
       updateCategory,
       addCategory,
+      deleteCategory,
       saveStructure,
-      assignStructureToClass,
+      deleteStructure,
       generateForEnrollment,
       generateForClass,
-      attachAddOn,
-      toggleAddOn,
       collectPayment,
       addDiscount,
       addFine,
-      sendReminders,
+      updateFine,
+      deleteFine,
       addExpense,
-    };
-  }, [
-    loading,
-    reloading,
-    session,
-    sessions,
-    classes,
-    categories,
-    students,
-    state,
-    derivedInvoices,
-    studentSummaries,
-    invoicesForEnrollment,
-    paymentsForEnrollment,
-    discountsForEnrollment,
-    finesForEnrollment,
-    addOnsForEnrollment,
-    discountsForInvoice,
-    finesForInvoice,
-    structureForEnrollment,
-    studentsInClass,
-    dashboardStats,
-    defaulters,
-    updateCategory,
-    addCategory,
-    saveStructure,
-    assignStructureToClass,
-    generateForEnrollment,
-    generateForClass,
-    attachAddOn,
-    toggleAddOn,
-    collectPayment,
-    addDiscount,
-    addFine,
-    sendReminders,
-    addExpense,
-  ]);
+    }),
+    [
+      loading,
+      reloading,
+      error,
+      session,
+      sessions,
+      classes,
+      categories,
+      paymentMethods,
+      students,
+      structures,
+      expenses,
+      derivedInvoices,
+      studentSummaries,
+      invoicesForEnrollment,
+      paymentsForEnrollment,
+      discountsForEnrollment,
+      finesForEnrollment,
+      addOnsForEnrollment,
+      discountsForInvoice,
+      finesForInvoice,
+      structureForEnrollment,
+      studentsInClass,
+      dashboardStats,
+      defaulters,
+      reload,
+      updateCategory,
+      addCategory,
+      deleteCategory,
+      saveStructure,
+      deleteStructure,
+      generateForEnrollment,
+      generateForClass,
+      collectPayment,
+      addDiscount,
+      addFine,
+      updateFine,
+      deleteFine,
+      addExpense,
+    ],
+  );
 
   return <FeeModuleContext.Provider value={value}>{children}</FeeModuleContext.Provider>;
 }

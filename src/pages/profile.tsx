@@ -4,14 +4,20 @@ import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { useRole } from "@/lib/permissions";
+import { useAuth } from "@/lib/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { User, Mail, Shield, Save } from "lucide-react";
 
 export default function ProfilePage() {
-  const { roleDetails } = useRole();
+  const { activeRoleName, userRoles } = useRole();
+  const { user } = useAuth();
   const { toast } = useToast();
+
+  const displayName = user?.username ?? `${activeRoleName} User`;
+  const roleName = activeRoleName ?? "User";
+  const initials = displayName.substring(0, 2).toUpperCase();
 
   const handleSave = () => {
     toast("Profile Updated!", "Your profile information has been updated.", "success");
@@ -28,13 +34,18 @@ export default function ProfilePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="text-center p-6 space-y-4">
-          <Avatar fallback={roleDetails.name.substring(0, 2).toUpperCase()} size="lg" className="mx-auto h-20 w-20 text-xl font-bold" />
+          <Avatar fallback={initials} size="lg" className="mx-auto h-20 w-20 text-xl font-bold" />
           <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">{roleDetails.name} User</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">user@{roleDetails.id}.school.edu</p>
-            <span className={`inline-block mt-2 text-xs px-2.5 py-0.5 rounded font-semibold ${roleDetails.badgeColor}`}>
-              {roleDetails.name}
+            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">{displayName}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{user?.email ?? "No email on file"}</p>
+            <span className="inline-block mt-2 text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 font-semibold">
+              {roleName}
             </span>
+            {userRoles.length > 1 && (
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                +{userRoles.length - 1} more role(s)
+              </p>
+            )}
           </div>
         </Card>
 
@@ -43,22 +54,22 @@ export default function ProfilePage() {
           <CardContent className="space-y-4 text-xs">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="font-semibold block mb-1">Full Name</label>
-                <Input defaultValue={`${roleDetails.name} User`} maxLength={50} placeholder="Enter full name" />
+                <label className="font-semibold block mb-1">Username</label>
+                <Input readOnly defaultValue={displayName} maxLength={50} placeholder="Enter full name" />
               </div>
               <div>
                 <label className="font-semibold block mb-1">Email Address</label>
-                <Input type="email" defaultValue={`user@${roleDetails.id}.school.edu`} maxLength={120} placeholder="Enter email" />
+                <Input type="email" readOnly defaultValue={user?.email ?? ""} maxLength={120} placeholder="Enter email" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="font-semibold block mb-1">Phone Number</label>
-                <Input inputMode="tel" defaultValue="+91 98765 43210" maxLength={15} placeholder="Enter phone" />
+                <Input readOnly inputMode="tel" defaultValue={user?.phone ?? ""} maxLength={15} placeholder="Enter phone" />
               </div>
               <div>
-                <label className="font-semibold block mb-1">Assigned Role Context</label>
-                <Input value={roleDetails.name} disabled className="bg-slate-100 dark:bg-slate-800" />
+                <label className="font-semibold block mb-1">Assigned Role</label>
+                <Input value={roleName} readOnly className="bg-slate-100 dark:bg-slate-800" />
               </div>
             </div>
             <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-xs">

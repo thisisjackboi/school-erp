@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
 import {
   createUser,
   getUserRoles,
@@ -282,6 +283,7 @@ export default function UsersPage() {
           </p>
         </div>
 
+        <PermissionGate permission="users.create">
         <Button
           type="button"
           onClick={openCreate}
@@ -290,6 +292,7 @@ export default function UsersPage() {
           <UserPlus className="mr-2 h-4 w-4" />
           Add User
         </Button>
+      </PermissionGate>
       </div>
 
       {error && !createOpen && !editOpen && (
@@ -766,15 +769,17 @@ function UserTableRow({ user, accessToken, onEdit }: UserTableRowProps) {
       </td>
 
       <td className="px-4 py-3 text-right">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onEdit(user)}
-        >
-          <Pencil className="mr-2 h-3.5 w-3.5" />
-          Edit
-        </Button>
+        <PermissionGate permission="users.update">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onEdit(user)}
+          >
+            <Pencil className="mr-2 h-3.5 w-3.5" />
+            Edit
+          </Button>
+        </PermissionGate>
       </td>
     </tr>
   );

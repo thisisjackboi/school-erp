@@ -1,11 +1,12 @@
 // Domain types for the Fees & Financials module.
 // These mirror the backend Prisma fee/finance models (FeeCategory, FeeStructure,
 // StudentFeeAssignment, Discount, Fine, FeeCollection, FeeCollectionItem) and are
-// enriched with derived invoice rows so the UI can always show an itemised breakdown.
+// derived server-side, so the UI always renders the source of truth from the API.
 
 export type RecurringInterval = "MONTHLY" | "QUARTERLY" | "YEARLY" | "ONCE";
 
 export type FeeStatus = "PAID" | "PARTIAL" | "PENDING" | "OVERDUE";
+export type SummaryStatus = "PAID" | "PARTIAL" | "OVERDUE" | "NONE";
 
 export type PaymentMode =
   | "CASH"
@@ -14,8 +15,6 @@ export type PaymentMode =
   | "BANK_TRANSFER"
   | "CHEQUE"
   | "ONLINE";
-
-export type ReminderChannel = "SMS" | "EMAIL" | "WHATSAPP";
 
 export type DiscountScope = "ROW" | "HEAD" | "STUDENT";
 
@@ -38,11 +37,9 @@ export interface FeeStructureItem {
   feeCategoryId: string;
   categoryName: string;
   amount: number;
-  dueDay: number; // day of month the fee falls due
-  lateFeeAmount: number; // flat late fee applied after grace period
+  dueDay: number;
+  lateFeeAmount: number;
   gracePeriodDays: number;
-  proratable: boolean;
-  isAddOn: boolean;
 }
 
 export interface FeeStructure {
@@ -71,47 +68,30 @@ export interface StudentInfo {
   parentName: string;
   parentPhone: string;
   parentEmail: string;
-  enrolledOn: string; // ISO date
+  enrolledOn: string;
   avatar?: string | null;
 }
 
-// ── Assignment: structure attached to an individual student ───────────
-export interface StudentAssignment {
-  id: string;
-  enrollmentId: string;
-  structureId: string;
-  assignedAt: string;
-}
-
-// ── Per-student add-on allocation (transport, hostel, etc.) ───────────
-export interface AddOnEntry {
-  id: string;
-  enrollmentId: string;
-  feeCategoryId: string;
-  amount: number;
-  dueDay: number;
-  gracePeriodDays: number;
-  lateFeeAmount: number;
-  proratable: boolean;
-  active: boolean;
-  attachedAt: string;
-}
-
-// ── Derived invoice row (one per fee head / period) ───────────────────
+// ── Derived invoice row (one per fee structure item × period) ─────────
 export interface InvoiceRow {
   id: string;
+  assignmentId: string;
+  feeStructureItemId: string;
   enrollmentId: string;
   feeStructureId: string;
   feeCategoryId: string;
   categoryLabel: string;
-  periodLabel: string; // e.g. "Monthly · Jun 2026", "Annual 2026-27"
-  monthKey?: string; // "2026-06" for recurring rows
+  categoryCode: string;
+  periodKey: string;
+  periodLabel: string; // e.g. "Monthly - Jun 2026", "Annual - 2026-27"
+  monthKey?: string; // "2026-06" for monthly rows
   baseAmount: number;
   gracePeriodDays: number;
   lateFeeAmount: number;
   discountAmount: number;
+  fineAmount: number;
   lateFee: number;
-  payableAmount: number; // baseAmount - discountAmount + lateFee
+  payableAmount: number; // baseAmount - discountAmount + fineAmount + lateFee
   paidAmount: number;
   balance: number; // payableAmount - paidAmount
   dueDate: string; // yyyy-mm-dd
@@ -122,8 +102,9 @@ export interface InvoiceRow {
 export interface DiscountEntry {
   id: string;
   enrollmentId: string;
-  invoiceId?: string; // specific row, when scope === ROW
-  feeCategoryId?: string; // head-level scope
+  assignmentId: string;
+  feeStructureItemId?: string;
+  periodLabel?: string;
   amount: number;
   reason: string;
   scope: DiscountScope;
@@ -134,7 +115,10 @@ export interface DiscountEntry {
 export interface FineEntry {
   id: string;
   enrollmentId: string;
-  invoiceId: string;
+  assignmentId: string;
+  feeStructureItemId?: string;
+  invoiceId: string; // representative invoice row for display
+  periodLabel?: string;
   reason: string;
   amount: number;
   createdAt: string;
@@ -150,7 +134,7 @@ export interface Payment {
   receiptNumber: string;
   enrollmentId: string;
   amount: number;
-  paymentMode: PaymentMode;
+  paymentMode: string;
   referenceNumber?: string;
   remarks?: string;
   receivedBy: string;
@@ -158,33 +142,7 @@ export interface Payment {
   allocations: PaymentAllocation[];
 }
 
-export interface ReminderLog {
-  id: string;
-  enrollmentId: string;
-  channel: ReminderChannel;
-  type: "PRE_DUE" | "POST_DUE" | "DEFAULTER";
-  sentAt: string;
-  to: string;
-}
-
-export interface FeeStoreState {
-  sessionId: string;
-  structures: FeeStructure[];
-  assignments: StudentAssignment[];
-  addOns: AddOnEntry[];
-  invoices: InvoiceRow[];
-  discounts: DiscountEntry[];
-  fines: FineEntry[];
-  payments: Payment[];
-  reminders: ReminderLog[];
-  receiptCounter: number;
-  expenses: ExpenseEntry[];
-  version: number;
-}
-
-// ── View models (computed) ────────────────────────────────────────────
-export type SummaryStatus = "PAID" | "PARTIAL" | "OVERDUE" | "NONE";
-
+// ── View models (server-computed) ─────────────────────────────────────
 export interface StudentSummaryRow {
   enrollmentId: string;
   studentName: string;
@@ -240,9 +198,7 @@ export interface DefaulterRow {
 export interface ExpenseEntry {
   id: string;
   category: string;
-  title: string;
   amount: number;
   date: string;
-  paymentMode: string;
-  paidTo: string;
+  paidTo?: string;
 }

@@ -20,17 +20,12 @@ import { FeeStatusBadge } from "@/components/fees/fee-status-badge";
 import { FilterBar } from "@/components/fees/filter-bar";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
-import { uid } from "@/lib/fees-fm/seed";
 
 function formatDate(d?: string): string {
   if (!d) return "-";
   const dt = new Date(`${d}T00:00:00`);
   if (isNaN(dt.getTime())) return d;
   return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function humanMode(mode: string) {
-  return (mode || "").replace(/_/g, " ");
 }
 
 function download(name: string, content: string, type = "text/plain") {
@@ -49,7 +44,7 @@ function toCsv(headers: string[], rows: (string | number)[][]) {
 }
 
 export default function FeeReportsPage() {
-  const { dashboardStats, defaulters, studentSummaries, state, addExpense, categories } = useFees();
+  const { dashboardStats, defaulters, studentSummaries, expenses, addExpense, categories, loading } = useFees();
   const { canManage } = useFeeAccess();
   const { toast } = useToast();
   const filters = useFeeFiltersState();
@@ -70,36 +65,36 @@ export default function FeeReportsPage() {
     [defaulters, filters.className],
   );
 
-  const expenses = useMemo(() => {
-    let list = state.expenses;
+  const expensesList = useMemo(() => {
+    let list = expenses;
     if (filters.from) list = list.filter((e) => e.date >= filters.from!);
     if (filters.to) list = list.filter((e) => e.date <= filters.to!);
     return list.slice().sort((a, b) => b.date.localeCompare(a.date));
-  }, [state.expenses, filters.from, filters.to]);
+  }, [expenses, filters.from, filters.to]);
 
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+  const totalExpenses = expensesList.reduce((s, e) => s + e.amount, 0);
 
   const [expenseOpen, setExpenseOpen] = useState(false);
-  const [expForm, setExpForm] = useState({ category: "Salary", title: "", amount: "", paidTo: "" });
+  const [expForm, setExpForm] = useState({ category: "Salary", amount: "", paidTo: "", date: "" });
 
   const handleAddExpense = () => {
-    if (!Number(expForm.amount) || !expForm.title.trim()) {
-      toast("Error", "Title and amount are required.", "error");
+    if (!Number(expForm.amount)) {
+      toast("Error", "Amount is required.", "error");
       return;
     }
-    const date = filters.to && filters.to >= filters.from ? filters.to : new Date().toISOString().slice(0, 10);
+    const date = expForm.date || new Date().toISOString().slice(0, 10);
     addExpense({
-      id: uid("exp"),
       category: expForm.category,
-      title: expForm.title.trim(),
       amount: Number(expForm.amount),
-      paidTo: expForm.paidTo,
-      paymentMode: "BANK_TRANSFER",
+      paidTo: expForm.paidTo || undefined,
       date,
-    });
-    toast("Expense recorded", `${expForm.title} added to the financial register.`, "success");
-    setExpenseOpen(false);
-    setExpForm({ category: "Salary", title: "", amount: "", paidTo: "" });
+    })
+      .then(() => {
+        toast("Expense recorded", `${expForm.category} expense added to the financial register.`, "success");
+        setExpenseOpen(false);
+        setExpForm({ category: "Salary", amount: "", paidTo: "", date: "" });
+      })
+      .catch((e) => toast("Failed", e instanceof Error ? e.message : "Could not record expense.", "error"));
   };
 
   const exportAll = () => {
@@ -277,29 +272,25 @@ export default function FeeReportsPage() {
             </Button>
           )}
         </CardHeader>
-        <CardContent className="p-0">
+<CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead>Title</TableHead>
                 <TableHead>Paid To</TableHead>
-                <TableHead>Mode</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {expenses.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No expenses recorded.</TableCell></TableRow>
+              {expensesList.length === 0 ? (
+                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No expenses recorded.</TableCell></TableRow>
               ) : (
-                expenses.map((e) => (
+                expensesList.map((e) => (
                   <TableRow key={e.id}>
                     <TableCell className="text-xs">{formatDate(e.date)}</TableCell>
                     <TableCell className="text-xs"><span className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold">{e.category}</span></TableCell>
-                    <TableCell className="text-xs font-medium">{e.title}</TableCell>
-                    <TableCell className="text-xs">{e.paidTo}</TableCell>
-                    <TableCell className="text-xs">{humanMode(e.paymentMode)}</TableCell>
+                    <TableCell className="text-xs">{e.paidTo || <span className="text-muted-foreground">-</span>}</TableCell>
                     <TableCell className="text-xs text-right tabular-nums font-semibold text-red-600">{formatCurrency(e.amount)}</TableCell>
                   </TableRow>
                 ))
@@ -333,12 +324,12 @@ export default function FeeReportsPage() {
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold block mb-1">Title</label>
-            <Input value={expForm.title} onChange={(e) => setExpForm({ ...expForm, title: e.target.value })} placeholder="e.g. Driver salary June" />
+            <label className="text-xs font-semibold block mb-1">Date</label>
+            <Input type="date" value={expForm.date} onChange={(e) => setExpForm({ ...expForm, date: e.target.value })} />
           </div>
           <div>
             <label className="text-xs font-semibold block mb-1">Paid to</label>
-            <Input value={expForm.paidTo} onChange={(e) => setExpForm({ ...expForm, paidTo: e.target.value })} />
+            <Input value={expForm.paidTo} onChange={(e) => setExpForm({ ...expForm, paidTo: e.target.value })} placeholder="e.g. Driver / vendor name (optional)" />
           </div>
         </div>
         <div className="flex justify-end space-x-2 pt-4 border-t border-border mt-4">

@@ -1,108 +1,15 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { UserRole, RoleInfo } from "./types";
-
-export const ROLES: RoleInfo[] = [
-  {
-    id: "administrator",
-    name: "Administrator",
-    description: "Full system control, configuration & audit logs",
-    badgeColor:
-      "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300",
-  },
-  {
-    id: "principal",
-    name: "Principal",
-    description: "Academic direction, staff analytics & school oversight",
-    badgeColor:
-      "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300",
-  },
-  {
-    id: "vice_principal",
-    name: "Vice Principal",
-    description: "Discipline, substitute allocations & academic monitoring",
-    badgeColor:
-      "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300",
-  },
-  {
-    id: "academic_coordinator",
-    name: "Academic Coordinator",
-    description: "Curriculum mapping, subject syllabi & exam schedules",
-    badgeColor:
-      "bg-teal-100 text-teal-800 border-teal-200 dark:bg-teal-900/40 dark:text-teal-300",
-  },
-  {
-    id: "accountant",
-    name: "Accountant",
-    description: "Fee processing, income, expenses & financial reports",
-    badgeColor:
-      "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300",
-  },
-  {
-    id: "hr_manager",
-    name: "HR Manager",
-    description: "Staff onboarding, payroll, leave requests & attendance",
-    badgeColor:
-      "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300",
-  },
-  {
-    id: "teacher",
-    name: "Teacher",
-    description: "Attendance marking, homework creation & student grading",
-    badgeColor:
-      "bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-900/40 dark:text-sky-300",
-  },
-  {
-    id: "class_teacher",
-    name: "Class Teacher",
-    description: "Class roster management, report cards & parent alerts",
-    badgeColor:
-      "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/40 dark:text-cyan-300",
-  },
-  {
-    id: "librarian",
-    name: "Librarian",
-    description: "Book checkout, catalog indexing & overdue fines",
-    badgeColor:
-      "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300",
-  },
-  {
-    id: "receptionist",
-    name: "Receptionist",
-    description: "Visitor gate passes, front office inquiries & calls",
-    badgeColor:
-      "bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/40 dark:text-pink-300",
-  },
-  {
-    id: "transport_manager",
-    name: "Transport Manager",
-    description: "Bus routes, vehicle logs & driver assignments",
-    badgeColor:
-      "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300",
-  },
-  {
-    id: "hostel_warden",
-    name: "Hostel Warden",
-    description: "Room allocations, resident logs & hostel discipline",
-    badgeColor:
-      "bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/40 dark:text-violet-300",
-  },
-  {
-    id: "student",
-    name: "Student",
-    description: "Timetable, homework, exam marks & fee receipts",
-    badgeColor:
-      "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/40 dark:text-green-300",
-  },
-  {
-    id: "parent",
-    name: "Parent",
-    description: "Child progress tracking, fee payments & announcements",
-    badgeColor:
-      "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/40 dark:text-rose-300",
-  },
-];
+import React, { createContext, useContext, useMemo } from "react";
+import { useAuth } from "./auth/auth-context";
+import {
+  getRoutesForPermissions,
+  ALWAYS_ALLOWED_ROUTES,
+} from "./route-permissions";
+import type {
+  AuthUserPermission,
+  AuthUserRole,
+} from "./types/auth";
 
 export interface NavItem {
   title: string;
@@ -110,6 +17,10 @@ export interface NavItem {
   iconName: string;
   badge?: string;
   group?: string;
+  /** Permission code required to see this item. Omitted = always visible. */
+  permission?: string;
+  /** Any of these permission codes suffice to see this item (takes precedence over `permission`). */
+  anyPermission?: string[];
 }
 
 export interface NavGroupItem {
@@ -126,6 +37,45 @@ export const NAV_GROUPS: NavGroupItem[] = [
   { id: "examinations", title: "Examinations", iconName: "GraduationCap" },
 ];
 
+/**
+ * Highest-privilege-first ordering. When a user holds multiple roles the
+ * most privileged one drives the dashboard and the active-role badge,
+ * instead of whatever `userRoles` returns first from the DB.
+ */
+export const ROLE_PRIORITY: string[] = [
+  "SUPER_ADMIN",
+  "SYSTEM_ADMIN",
+  "ADMIN",
+  "PRINCIPAL",
+  "VICE_PRINCIPAL",
+  "ACADEMIC_COORDINATOR",
+  "ACCOUNTANT",
+  "HR_MANAGER",
+  "CLASS_TEACHER",
+  "TEACHER",
+  "LIBRARIAN",
+  "RECEPTIONIST",
+  "TRANSPORT_MANAGER",
+  "HOSTEL_WARDEN",
+  "STUDENT",
+  "PARENT",
+  "GUARDIAN",
+];
+
+export function pickHighestRole(
+  userRoles: AuthUserRole[],
+): AuthUserRole | undefined {
+  let best: AuthUserRole | undefined;
+  for (const r of userRoles) {
+    const rank = ROLE_PRIORITY.indexOf(r.name.toUpperCase());
+    if (rank === -1) continue;
+    if (!best || rank < ROLE_PRIORITY.indexOf(best.name.toUpperCase())) {
+      best = r;
+    }
+  }
+  return best ?? userRoles[0];
+}
+
 export const MODULE_ROUTES: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", iconName: "LayoutDashboard" },
   {
@@ -133,382 +83,197 @@ export const MODULE_ROUTES: NavItem[] = [
     href: "/users",
     iconName: "ShieldCheck",
     group: "administration",
+    permission: "users.read",
   },
   {
     title: "Permissions",
     href: "/permissions",
     iconName: "ShieldCheck",
     group: "administration",
+    permission: "permissions.read",
   },
   {
     title: "Access Management",
     href: "/access-management",
     iconName: "CalendarDays",
     group: "administration",
+    permission: "access.read",
   },
   {
     title: "Designations",
     href: "/designations",
     iconName: "BriefcaseBusiness",
     group: "administration",
+    permission: "designations.read",
   },
   {
     title: "Roles",
     href: "/roles",
     iconName: "ShieldCheck",
     group: "administration",
+    permission: "roles.read",
   },
   {
     title: "Employees",
     href: "/employees",
     iconName: "UserRound",
     group: "administration",
+    permission: "employees.read",
   },
   {
     title: "Academic Session",
     href: "/sessions",
     iconName: "CalendarDays",
     group: "academic-setup",
+    permission: "academic-sessions.read",
   },
   {
     title: "Classes & Sections",
     href: "/classes",
     iconName: "School",
     group: "academic-setup",
+    permission: "classes.read",
   },
   {
     title: "Subjects",
     href: "/subjects",
     iconName: "BookOpen",
     group: "academic-setup",
+    permission: "subjects.read",
   },
   {
     title: "Class–Subject Mapping",
     href: "/class-subjects",
     iconName: "BookOpenCheck",
     group: "academic-setup",
+    permission: "class-subjects.read",
   },
   {
     title: "Section Management",
     href: "/sections",
     iconName: "layers",
     group: "academic-setup",
+    permission: "sections.read",
   },
   {
     title: "Teacher Subject Assignment",
     href: "/teacher-subject-assignments",
     iconName: "layers",
     group: "academic-setup",
+    permission: "teacher-subject-assignments.read",
   },
-  { title: "Admissions", href: "/admissions", iconName: "UserPlus" },
-
+  {
+    title: "Admissions",
+    href: "/admissions",
+    iconName: "UserPlus",
+    permission: "admissions.read",
+  },
   {
     title: "Students",
     href: "/students",
     iconName: "Users",
     group: "students-class",
+    permission: "students.read",
   },
-
   {
     title: "Attendance",
     href: "/attendance",
     iconName: "UserCheck",
     group: "students-class",
+    permission: "student-attendance.read",
   },
-  // { title: "Homework", href: "/homework", iconName: "FileText" },
   {
     title: "Timetable",
     href: "/timetable",
     iconName: "Clock",
     group: "students-class",
+    anyPermission: ["timetable-periods.read", "timetable-slots.read"],
   },
   {
     title: "Exam Types",
     href: "/exam-types",
     iconName: "Tags",
     group: "examinations",
+    permission: "exam-types.read",
   },
   {
     title: "Examinations",
     href: "/exams",
     iconName: "GraduationCap",
     group: "examinations",
+    permission: "exams.read",
   },
-
   {
     title: "Marks & Results",
     href: "/marks-entry",
     iconName: "ClipboardCheck",
     group: "examinations",
+    permission: "marks.read",
   },
   {
     title: "Results",
     href: "/results",
     iconName: "BarChart3",
     group: "examinations",
+    permission: "exam-results.read",
   },
-  // { title: "Report Cards", href: "/report-cards", iconName: "Award" },
   {
     title: "Fee Dashboard",
     href: "/fees/dashboard",
     iconName: "LayoutDashboard",
     group: "finance-fees",
+    permission: "fees.categories.read",
   },
   {
     title: "Fee Setup & Structures",
     href: "/fees/setup",
     iconName: "Settings",
     group: "finance-fees",
+    permission: "fees.categories.read",
   },
   {
     title: "Students & Classes",
     href: "/fees/students",
     iconName: "Users",
     group: "finance-fees",
+    permission: "fees.categories.read",
   },
   {
     title: "Collect Fee",
     href: "/fees/collect",
     iconName: "CreditCard",
     group: "finance-fees",
+    permission: "fees.categories.read",
   },
   {
     title: "Reports",
     href: "/fees/reports",
     iconName: "BarChart3",
     group: "finance-fees",
+    permission: "fees.categories.read",
   },
-  // { title: "Finance & Accounts", href: "/finance", iconName: "DollarSign" },
-  // { title: "Payroll", href: "/payroll", iconName: "Receipt" },
-  // { title: "Teachers", href: "/teachers", iconName: "UserSquare2" },
-
-  // { title: "Leave Management", href: "/leave", iconName: "CalendarCheck" },
-  // { title: "Library", href: "/library", iconName: "Library" },
-  // { title: "Inventory", href: "/inventory", iconName: "Boxes" },
-  // { title: "Transport", href: "/transport", iconName: "Bus" },
-  // { title: "Hostel", href: "/hostel", iconName: "Building2" },
-  // {
-  //   title: "Visitors & Front Office",
-  //   href: "/visitors",
-  //   iconName: "UserSearch",
-  // },
-  // { title: "Announcements", href: "/announcements", iconName: "Megaphone" },
-  // { title: "Events & Calendar", href: "/events", iconName: "Calendar" },
-  // { title: "Certificates", href: "/certificates", iconName: "FileCheck" },
-  // { title: "Reports & Analytics", href: "/reports", iconName: "BarChart3" },
-  // { title: "School Settings", href: "/settings", iconName: "Settings" },
 ];
 
-export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
-  administrator: MODULE_ROUTES.map((m) => m.href), // Full Access
-
-  principal: [
-    "/dashboard",
-    "/students",
-    "/admissions",
-    "/classes",
-    "/subjects",
-    "/sessions",
-    "/attendance",
-    "/timetable",
-    "/exam-types",
-    "/exams",
-    "/exam-schedules",
-    "/marks",
-    "/marks-entry",
-    "/results",
-    "/report-cards",
-    "/fees",
-    "/fees/dashboard",
-    "/fees/setup",
-    "/fees/students",
-    "/fees/collect",
-    "/fees/reports",
-    "/finance",
-    "/teachers",
-    "/employees",
-    "/leave",
-    "/announcements",
-    "/events",
-    "/reports",
-    "/settings",
-  ],
-
-  vice_principal: [
-    "/dashboard",
-    "/students",
-    "/classes",
-    "/subjects",
-    "/attendance",
-    "/homework",
-    "/timetable",
-    "/exam-types",
-    "/exams",
-    "/exam-schedules",
-    "/marks",
-    "/marks-entry",
-    "/results",
-    "/report-cards",
-    "/teachers",
-    "/leave",
-    "/visitors",
-    "/announcements",
-    "/events",
-  ],
-
-  academic_coordinator: [
-    "/dashboard",
-    "/students",
-    "/classes",
-    "/subjects",
-    "/sessions",
-    "/homework",
-    "/timetable",
-    "/exam-types",
-    "/exams",
-    "/exam-schedules",
-    "/marks",
-    "/marks-entry",
-    "/results",
-    "/report-cards",
-    "/teachers",
-    "/announcements",
-    "/events",
-  ],
-
-  accountant: [
-    "/dashboard",
-    "/students",
-    "/fees",
-    "/fees/dashboard",
-    "/fees/setup",
-    "/fees/students",
-    "/fees/collect",
-    "/fees/reports",
-    "/finance",
-    "/payroll",
-    "/reports",
-    "/announcements",
-  ],
-
-  hr_manager: [
-    "/dashboard",
-    "/teachers",
-    "/employees",
-    "/payroll",
-    "/leave",
-    "/announcements",
-    "/reports",
-  ],
-
-  teacher: [
-    "/dashboard",
-    "/students",
-    "/attendance",
-    "/homework",
-    "/timetable",
-    "/exam-types",
-    "/exams",
-    "/exam-schedules",
-    "/report-cards",
-    "/leave",
-    "/announcements",
-    "/events",
-  ],
-
-  class_teacher: [
-    "/dashboard",
-    "/students",
-    "/classes",
-    "/attendance",
-    "/homework",
-    "/timetable",
-    "/exam-types",
-    "/exams",
-    "/exam-schedules",
-    "/marks",
-    "/marks-entry",
-    "/results",
-    "/report-cards",
-    "/leave",
-    "/announcements",
-    "/events",
-  ],
-
-  librarian: [
-    "/dashboard",
-    "/students",
-    "/teachers",
-    "/library",
-    "/announcements",
-  ],
-
-  receptionist: [
-    "/dashboard",
-    "/students",
-    "/admissions",
-    "/visitors",
-    "/announcements",
-    "/events",
-  ],
-
-  transport_manager: [
-    "/dashboard",
-    "/students",
-    "/transport",
-    "/announcements",
-  ],
-
-  hostel_warden: ["/dashboard", "/students", "/hostel", "/announcements"],
-
-  student: [
-    "/dashboard",
-    "/attendance",
-    "/homework",
-    "/timetable",
-    "/exam-types",
-    "/exams",
-    "/exam-schedules",
-    "/marks",
-    "/marks-entry",
-    "/results",
-    "/report-cards",
-    "/fees",
-    "/fees/dashboard",
-    "/fees/students",
-    "/fees/collect",
-    "/library",
-    "/announcements",
-    "/events",
-  ],
-
-  parent: [
-    "/dashboard",
-    "/attendance",
-    "/homework",
-    "/timetable",
-    "/exam-types",
-    "/exams",
-    "/exam-schedules",
-    "/marks",
-    "/marks-entry",
-    "/results",
-    "/report-cards",
-    "/fees",
-    "/fees/dashboard",
-    "/fees/students",
-    "/fees/collect",
-    "/announcements",
-    "/events",
-  ],
-};
-
 interface RoleContextType {
-  activeRole: UserRole;
-  setActiveRole: (role: UserRole) => void;
+  userRoles: AuthUserRole[];
+  userPermissions: AuthUserPermission[];
+  /** Raw permission codes the authenticated user actually holds. */
+  permissionCodes: string[];
+  /** Routes the user may navigate to (computed from their permissions). */
   allowedRoutes: string[];
-  hasPermission: (href: string) => boolean;
-  roleDetails: RoleInfo;
+  /** Check an action-level permission code, e.g. `hasPermission("classes.create")`. */
+  hasPermission: (code: string) => boolean;
+  /** Check whether the user may access a specific route. */
+  hasRouteAccess: (href: string) => boolean;
+  /** True when the user holds ANY of the provided permission codes. */
+  hasAnyPermission: (...codes: string[]) => boolean;
+  /** Backwards-compatible alias for `hasPermission`. */
+  hasActionCode: (code: string) => boolean;
+  /** Check whether the user has any permission belonging to a module. */
+  hasModule: (module: string) => boolean;
+  /** Display name of the first assigned role (falls back to userType). */
+  activeRoleName: string;
+  isLoadingPermissions: boolean;
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
@@ -516,41 +281,72 @@ const RoleContext = createContext<RoleContextType | undefined>(undefined);
 export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [activeRole, setActiveRoleState] = useState<UserRole>("administrator");
+  const { user, isLoading, isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    const saved = localStorage.getItem("active_erp_role");
-    if (saved && ROLES.some((r) => r.id === saved)) {
-      setActiveRoleState(saved as UserRole);
+  const userRoles: AuthUserRole[] = user?.roles ?? [];
+  const userPermissions: AuthUserPermission[] = user?.permissions ?? [];
+
+  const permissionCodes = useMemo(
+    () => userPermissions.map((p) => p.code),
+    [userPermissions],
+  );
+
+  const isLoadingPermissions = isLoading && isAuthenticated;
+
+  const allowedRoutes = useMemo(() => {
+    if (isLoadingPermissions) {
+      return ALWAYS_ALLOWED_ROUTES;
     }
-  }, []);
+    if (userPermissions.length === 0 && permissionCodes.length === 0) {
+      return ALWAYS_ALLOWED_ROUTES;
+    }
+    return getRoutesForPermissions(userPermissions);
+  }, [userPermissions, permissionCodes, isLoadingPermissions]);
 
-  const setActiveRole = (role: UserRole) => {
-    setActiveRoleState(role);
-    localStorage.setItem("active_erp_role", role);
+  const hasPermission = (code: string) => {
+    return permissionCodes.includes(code);
   };
 
-  const allowedRoutes = ROLE_PERMISSIONS[activeRole] || [];
-
-  const hasPermission = (href: string) => {
+  const hasRouteAccess = (href: string) => {
     if (href === "/") return true;
-    return allowedRoutes.includes(href);
+    if (allowedRoutes.includes(href)) return true;
+    // Allow nested sub-routes, e.g. /fees/students/STS-1 when /fees/students is allowed.
+    return allowedRoutes.some(
+      (route) => href.startsWith(route + "/") && route !== "/dashboard",
+    );
   };
 
-  const roleDetails = ROLES.find((r) => r.id === activeRole) || ROLES[0];
+  const hasAnyPermission = (...codes: string[]) => {
+    return codes.some((code) => permissionCodes.includes(code));
+  };
+
+  const hasModule = (module: string) => {
+    return userPermissions.some((p) => p.module === module);
+  };
+
+  const activeRoleName =
+    userRoles.length > 0
+      ? pickHighestRole(userRoles)?.name ?? userRoles[0].name
+      : user?.userType === "SYSTEM"
+        ? "Administrator"
+        : user?.userType ?? "User";
+
+  const value: RoleContextType = {
+    userRoles,
+    userPermissions,
+    permissionCodes,
+    allowedRoutes,
+    hasPermission,
+    hasRouteAccess,
+    hasAnyPermission,
+    hasActionCode: hasPermission,
+    hasModule,
+    activeRoleName,
+    isLoadingPermissions,
+  };
 
   return (
-    <RoleContext.Provider
-      value={{
-        activeRole,
-        setActiveRole,
-        allowedRoutes,
-        hasPermission,
-        roleDetails,
-      }}
-    >
-      {children}
-    </RoleContext.Provider>
+    <RoleContext.Provider value={value}>{children}</RoleContext.Provider>
   );
 };
 

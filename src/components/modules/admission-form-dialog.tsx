@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/toast";
 import { UserPlus, ArrowRight, ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/lib/auth/auth-context";
+import { toDateInputValue } from "@/lib/dates";
 import { createAdmission, updateAdmission, getNextApplicationNumber } from "@/lib/api/admissions.api";
 import { getClasses } from "@/lib/api/classes.api";
 import { getAcademicSessions } from "@/lib/api/academic-sessions.api";
@@ -112,7 +113,7 @@ export function AdmissionFormDialog({
         applicationNumber: admission.applicationNumber || "",
         firstName: admission.applicantFirstName || "",
         lastName: admission.applicantLastName || "",
-        dob: admission.dateOfBirth ? admission.dateOfBirth.substring(0, 10) : "",
+        dob: toDateInputValue(admission.dateOfBirth),
         gender: admission.gender || "MALE",
         applyingForClassId: admission.applyingForClassId || "",
         academicSessionId: admission.academicSessionId || "",

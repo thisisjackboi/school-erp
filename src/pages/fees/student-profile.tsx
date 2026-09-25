@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -6,12 +6,12 @@ import {
   Mail,
   BadgePercent,
   AlertTriangle,
-  Plus,
-  Send,
   Receipt as ReceiptIcon,
-  RotateCw,
-  Bus,
-  Building2,
+  Wallet,
+  Settings2,
+  Pencil,
+  Trash2,
+  Download,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,9 +23,11 @@ import { useFees } from "@/lib/fees-fm/store";
 import { useFeeAccess } from "@/lib/fees-fm/access";
 import { FeeStatusBadge } from "@/components/fees/fee-status-badge";
 import { CollectFeeDialog } from "@/components/fees/collect-fee-dialog";
+import { ManageFeeHeadsDialog } from "@/components/fees/manage-fee-heads-dialog";
+import { PaymentReceiptDialog } from "@/components/fees/payment-receipt-dialog";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
-import type { InvoiceRow, DiscountScope } from "@/lib/fees-fm/types";
+import type { InvoiceRow, FineEntry, Payment } from "@/lib/fees-fm/types";
 
 function formatDate(d?: string): string {
   if (!d) return "-";
@@ -38,14 +40,145 @@ function humanMode(mode: string) {
   return mode.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function FeeSection({
+  title,
+  accent,
+  rows,
+  canManage,
+  onAddFine,
+  onCollect,
+}: {
+  title: string;
+  accent: "red" | "amber" | "emerald";
+  rows: InvoiceRow[];
+  canManage: boolean;
+  onAddFine?: (row: InvoiceRow) => void;
+  onCollect?: (row: InvoiceRow) => void;
+}) {
+  const dot =
+    accent === "red" ? "bg-red-500" : accent === "amber" ? "bg-amber-500" : "bg-emerald-500";
+  const totalBalance = rows.reduce((s, r) => s + r.balance, 0);
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-bold flex items-center gap-2">
+          <span className={`h-2 w-2 rounded-full ${dot}`} />
+          {title}
+          <span className="text-[11px] font-medium text-muted-foreground">
+            ({rows.length})
+          </span>
+          {rows.length > 0 && totalBalance > 0 && (
+            <span className="ml-auto text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-300">
+              {formatCurrency(totalBalance)} due
+            </span>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Fee Head / Period</TableHead>
+              <TableHead>Due Date</TableHead>
+              <TableHead className="text-right">Base</TableHead>
+              <TableHead className="text-right">Discount</TableHead>
+              <TableHead className="text-right">Late/Fine</TableHead>
+              <TableHead className="text-right">Payable</TableHead>
+              <TableHead className="text-right">Paid</TableHead>
+              <TableHead className="text-right">Balance</TableHead>
+              {canManage && <TableHead className="text-right">Actions</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={canManage ? 9 : 8}
+                  className="text-center text-muted-foreground py-6 text-xs"
+                >
+                  No {title.toLowerCase()} fees for this enrollment.
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="text-xs">
+                    <span className="font-semibold block">{r.categoryLabel}</span>
+                    <span className="text-muted-foreground text-[10px] block">
+                      {r.periodLabel}
+                      {r.source === "ADDON" && (
+                        <span className="ml-1 text-blue-600 font-semibold">Add-on</span>
+                      )}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-xs">{formatDate(r.dueDate)}</TableCell>
+                  <TableCell className="text-xs text-right tabular-nums">
+                    {formatCurrency(r.baseAmount)}
+                  </TableCell>
+                  <TableCell className="text-xs text-right tabular-nums text-blue-600">
+                    {r.discountAmount > 0 ? `-${formatCurrency(r.discountAmount)}` : "-"}
+                  </TableCell>
+                  <TableCell className="text-xs text-right tabular-nums text-red-500">
+                    {r.lateFee > 0 || r.fineAmount > 0
+                      ? formatCurrency(r.lateFee + r.fineAmount)
+                      : "-"}
+                  </TableCell>
+                  <TableCell className="text-xs text-right tabular-nums">
+                    {formatCurrency(r.payableAmount)}
+                  </TableCell>
+                  <TableCell className="text-xs text-right tabular-nums text-emerald-600">
+                    {formatCurrency(r.paidAmount)}
+                  </TableCell>
+                  <TableCell className="text-xs text-right tabular-nums font-semibold">
+                    {formatCurrency(r.balance)}
+                  </TableCell>
+                  {canManage && (
+                    <TableCell className="text-right">
+                      <div className="inline-flex gap-1">
+                        {r.balance > 0 ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-emerald-600"
+                              title="Collect this row"
+                              onClick={() => onCollect?.(r)}
+                            >
+                              <Wallet className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-emerald-600"
+                              title="Add fine"
+                              onClick={() => onAddFine?.(r)}
+                            >
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        ) : (
+                          <span className="inline-block w-6" />
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function FeeStudentProfilePage() {
   const { enrollmentId = "" } = useParams();
   const navigate = useNavigate();
   const {
     students, studentSummaries, invoicesForEnrollment, paymentsForEnrollment,
-    discountsForEnrollment, finesForEnrollment, addOnsForEnrollment,
-    structureForEnrollment, categories, attachAddOn, toggleAddOn,
-    addDiscount, addFine, sendReminders,
+    discountsForEnrollment, finesForEnrollment,
+    structureForEnrollment, addDiscount, addFine, updateFine, deleteFine, reload,
   } = useFees();
   const { isParent, canManage, canCollect } = useFeeAccess();
   const { toast } = useToast();
@@ -74,87 +207,108 @@ export default function FeeStudentProfilePage() {
   const payments = paymentsForEnrollment(enrollmentId);
   const discounts = discountsForEnrollment(enrollmentId);
   const fines = finesForEnrollment(enrollmentId);
-  const addOns = addOnsForEnrollment(enrollmentId);
   const structure = structureForEnrollment(enrollmentId);
 
-  // group invoices by fee head
-  const grouped = useMemo(() => {
-    const map = new Map<string, InvoiceRow[]>();
-    for (const r of invoices) {
-      const key = `${r.feeCategoryId}`;
-      const arr = map.get(key) || [];
-      arr.push(r);
-      map.set(key, arr);
-    }
-    return Array.from(map.entries()).map(([key, rows]) => ({
-      feeCategoryId: key,
-      categoryLabel: rows[0].categoryLabel,
-      source: rows[0].source,
-      rows: rows.sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
-      totals: {
-        base: rows.reduce((s, r) => s + r.baseAmount, 0),
-        discount: rows.reduce((s, r) => s + r.discountAmount, 0),
-        lateFee: rows.reduce((s, r) => s + r.lateFee, 0),
-        paid: rows.reduce((s, r) => s + r.paidAmount, 0),
-        balance: rows.reduce((s, r) => s + r.balance, 0),
-      },
-    }));
-  }, [invoices]);
+  // Fee ledger split by payment status
+  const overdueRows = useMemo(
+    () =>
+      invoices
+        .filter((r) => r.status === "OVERDUE")
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    [invoices],
+  );
+  const pendingRows = useMemo(
+    () =>
+      invoices
+        .filter((r) => r.balance > 0 && r.status !== "OVERDUE")
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    [invoices],
+  );
+  const paidRows = useMemo(
+    () =>
+      invoices
+        .filter((r) => r.balance <= 0)
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    [invoices],
+  );
 
   const [collectOpen, setCollectOpen] = useState(false);
+  const [collectRowId, setCollectRowId] = useState<string | null>(null);
   const [discountOpen, setDiscountOpen] = useState(false);
   const [fineOpen, setFineOpen] = useState(false);
-  const [addonOpen, setAddonOpen] = useState(false);
+  const [manageHeadsOpen, setManageHeadsOpen] = useState(false);
+  const [receiptPayment, setReceiptPayment] = useState<Payment | null>(null);
   const fineTargetId = useRef<string | null>(null);
+  const [editingFine, setEditingFine] = useState<FineEntry | null>(null);
 
-  const [discForm, setDiscForm] = useState({ amount: "", reason: "", scope: "ROW" as DiscountScope });
+  const [discForm, setDiscForm] = useState({ invoiceId: "", amount: "", reason: "" });
   const [fineForm, setFineForm] = useState({ amount: "", reason: "" });
-  const [addonForm, setAddonForm] = useState({ feeCategoryId: "", amount: "" });
 
-  const handleDiscount = () => {
-    if (!Number(discForm.amount) || !discForm.reason.trim()) {
-      toast("Error", "Amount and reason are required.", "error");
+  const discountOptions = invoices.filter((r) => r.balance > 0);
+
+  const handleDiscount = async () => {
+    if (!discForm.invoiceId || !Number(discForm.amount) || !discForm.reason.trim()) {
+      toast("Error", "Choose an invoice, amount and reason.", "error");
       return;
     }
-    addDiscount({
-      enrollmentId,
-      amount: Number(discForm.amount),
-      reason: discForm.reason,
-      scope: discForm.scope,
-    });
-    toast("Discount applied", "Discount has been applied to the ledger.", "success");
-    setDiscountOpen(false);
-    setDiscForm({ amount: "", reason: "", scope: "ROW" });
+    const target = invoices.find((r) => r.id === discForm.invoiceId);
+    if (!target) {
+      toast("Error", "Could not resolve that invoice.", "error");
+      return;
+    }
+    try {
+      await addDiscount({
+        assignmentId: target.assignmentId,
+        ...(target.feeStructureItemId && { feeStructureItemId: target.feeStructureItemId }),
+        amount: Number(discForm.amount),
+        reason: discForm.reason,
+      });
+      toast("Discount applied", `Applied to ${target.categoryLabel} · ${target.periodLabel}.`, "success");
+      setDiscountOpen(false);
+      setDiscForm({ invoiceId: "", amount: "", reason: "" });
+    } catch (e) {
+      toast("Failed", e instanceof Error ? e.message : "Could not apply discount.", "error");
+    }
   };
 
-  const handleFine = (row: InvoiceRow) => {
+  const handleFine = async (row: InvoiceRow) => {
     if (!Number(fineForm.amount) || !fineForm.reason.trim()) {
       toast("Error", "Amount and reason are required.", "error");
       return;
     }
-    addFine({ enrollmentId, invoiceId: row.id, reason: fineForm.reason, amount: Number(fineForm.amount) });
-    toast("Fine added", `Fine added to ${row.periodLabel}.`, "success");
-    setFineOpen(false);
-    setFineForm({ amount: "", reason: "" });
-  };
-
-  const handleAddon = () => {
-    const cat = categories.find((c) => c.id === addonForm.feeCategoryId);
-    if (!cat || !Number(addonForm.amount)) {
-      toast("Error", "Select an add-on and enter its monthly amount.", "error");
-      return;
+    try {
+      if (editingFine) {
+        await updateFine({
+          id: editingFine.id,
+          amount: Number(fineForm.amount),
+          reason: fineForm.reason,
+        });
+        toast("Fine updated", `Updated on ${row.periodLabel}.`, "success");
+      } else {
+        await addFine({
+          assignmentId: row.assignmentId,
+          feeStructureItemId: row.feeStructureItemId,
+          reason: fineForm.reason,
+          amount: Number(fineForm.amount),
+        });
+        toast("Fine added", `Fine added to ${row.categoryLabel} · ${row.periodLabel}.`, "success");
+      }
+      setFineOpen(false);
+      setEditingFine(null);
+      setFineForm({ amount: "", reason: "" });
+    } catch (e) {
+      toast("Failed", e instanceof Error ? e.message : "Could not save fine.", "error");
     }
-    attachAddOn(enrollmentId, cat.id, Number(addonForm.amount));
-    toast("Add-on attached", `${cat.name} will be billed from next invoice generation.`, "success");
-    setAddonOpen(false);
-    setAddonForm({ feeCategoryId: "", amount: "" });
   };
 
-  const addonLabels: Record<string, { icon: ReactNode; color: string }> = {
-    "Transport Fee": { icon: <Bus className="h-3.5 w-3.5" />, color: "border-yellow-300 bg-yellow-50 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200" },
-    "Hostel Fee": { icon: <Building2 className="h-3.5 w-3.5" />, color: "border-violet-300 bg-violet-50 text-violet-800 dark:bg-violet-950 dark:text-violet-200" },
-    "Computer Lab Fee": { icon: <RotateCw className="h-3.5 w-3.5" />, color: "border-sky-300 bg-sky-50 text-sky-800 dark:bg-sky-950 dark:text-sky-200" },
-    "Sports & Activities": { icon: <RotateCw className="h-3.5 w-3.5" />, color: "border-rose-300 bg-rose-50 text-rose-800 dark:bg-rose-950 dark:text-rose-200" },
+  const handleDeleteFine = async (f: FineEntry) => {
+    if (!window.confirm(`Delete fine of ${formatCurrency(f.amount)}? This cannot be undone.`)) return;
+    try {
+      await deleteFine(f.id);
+      toast("Fine deleted", "Fine removed and totals updated.", "success");
+    } catch (e) {
+      toast("Failed", e instanceof Error ? e.message : "Could not delete fine.", "error");
+    }
   };
 
   return (
@@ -175,23 +329,20 @@ export default function FeeStudentProfilePage() {
         </div>
         <div className="flex items-center gap-2">
           {canCollect && (
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-xs" onClick={() => setCollectOpen(true)}>
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-xs" onClick={() => { setCollectRowId(null); setCollectOpen(true); }}>
               <ReceiptIcon className="mr-1.5 h-3.5 w-3.5" /> Collect Fee
             </Button>
           )}
           {canManage && (
-            <>
-              <Button variant="outline" size="sm" className="text-xs" onClick={() => setDiscountOpen(true)}>
-                <BadgePercent className="mr-1.5 h-3.5 w-3.5" /> Add Discount
-              </Button>
-              <Button variant="outline" size="sm" className="text-xs" onClick={() => setAddonOpen(true)}>
-                <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Add-on
-              </Button>
-            </>
+            <Button variant="outline" size="sm" className="text-xs" onClick={() => setDiscountOpen(true)}>
+              <BadgePercent className="mr-1.5 h-3.5 w-3.5" /> Add Discount
+            </Button>
           )}
-          <Button variant="outline" size="sm" className="text-xs" onClick={() => { const c = sendReminders([enrollmentId], "SMS"); toast("Reminder sent", `${c} reminder queued.`, "success"); }}>
-            <Send className="mr-1.5 h-3.5 w-3.5" /> Remind
-          </Button>
+          {canManage && (
+            <Button variant="outline" size="sm" className="text-xs" onClick={() => setManageHeadsOpen(true)}>
+              <Settings2 className="mr-1.5 h-3.5 w-3.5" /> Manage Fee Heads
+            </Button>
+          )}
         </div>
       </div>
 
@@ -199,9 +350,9 @@ export default function FeeStudentProfilePage() {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
         <Card><CardContent className="p-3 space-y-1">
           <p className="text-muted-foreground">Parent / Guardian</p>
-          <p className="font-semibold">{student.parentName || "-"}</p>
-          <p className="text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3" /> {student.parentPhone || "-"}</p>
-          <p className="text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3" /> {student.parentEmail || "-"}</p>
+          <p className="font-semibold">{summary?.parentName || student.parentName || "-"}</p>
+          <p className="text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3" /> {summary?.parentPhone || student.parentPhone || "-"}</p>
+          <p className="text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3" /> {summary?.parentEmail || student.parentEmail || "-"}</p>
         </CardContent></Card>
         {summary && (
           <>
@@ -224,117 +375,63 @@ export default function FeeStudentProfilePage() {
         )}
       </div>
 
-      {/* Assigned structure + add-ons strip */}
+      {/* Assigned structure strip */}
       <Card>
         <CardContent className="p-3 flex items-center flex-wrap gap-x-6 gap-y-2 text-xs">
           <p className="text-muted-foreground">
             Fee structure: <strong className="text-slate-700 dark:text-slate-200">{structure?.name || "Not assigned"}</strong>
             {structure && <span className="text-muted-foreground"> · {structure.items.length} head(s)</span>}
           </p>
-          {addOns.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {addOns.map((a) => {
-                const cat = categories.find((c) => c.id === a.feeCategoryId);
-                return (
-                  <label key={a.id} className={`inline-flex items-center gap-1.5 border rounded-md px-2 py-1 ${addonLabels[a.feeCategoryId]?.color || "border-slate-300 bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>
-                    {addonLabels[a.feeCategoryId]?.icon}
-                    <span className="font-semibold">{cat?.name || "Add-on"}</span>
-                    <span className="tabular-nums">{formatCurrency(a.amount)}/mo</span>
-                    <input
-                      type="checkbox"
-                      className="accent-blue-600"
-                      checked={a.active}
-                      onChange={(e) => toggleAddOn(a.id, e.target.checked)}
-                      disabled={!canManage}
-                    />
-                  </label>
-                );
-              })}
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* Itemized ledger per fee head */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-bold">Fee Ledger (itemized by fee head)</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fee Head / Period</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead className="text-right">Base</TableHead>
-                <TableHead className="text-right">Discount</TableHead>
-                <TableHead className="text-right">Late/Fine</TableHead>
-                <TableHead className="text-right">Payable</TableHead>
-                <TableHead className="text-right">Paid</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-                <TableHead>Status</TableHead>
-                {canManage && <TableHead className="text-right">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {grouped.length === 0 ? (
-                <TableRow><TableCell colSpan={canManage ? 10 : 9} className="text-center text-muted-foreground py-8">No fees assigned yet.</TableCell></TableRow>
-              ) : (
-                grouped.map((g) => {
-                  const headPayable = g.totals.base + g.totals.lateFee - g.totals.discount;
-                  const headStatus = g.rows.some((r) => r.status === "OVERDUE")
-                    ? "OVERDUE"
-                    : g.totals.balance <= 0 ? "PAID"
-                    : g.totals.paid > 0 ? "PARTIAL" : "NONE" as const;
-                  return (
-                    <TableRow key={g.feeCategoryId} className="bg-slate-50 dark:bg-slate-800/40">
-                      <TableCell className="text-xs font-bold">
-                        {g.categoryLabel} {g.source === "ADDON" && <span className="text-blue-600 text-[10px] font-semibold">Add-on</span>}
-                      </TableCell>
-                      <TableCell colSpan={6} className="text-xs text-muted-foreground">
-                        {g.rows.length} month(s) · head total {formatCurrency(headPayable)}
-                      </TableCell>
-                      <TableCell className="text-xs text-right tabular-nums font-semibold">{formatCurrency(g.totals.balance)}</TableCell>
-                      <TableCell className="text-xs"><FeeStatusBadge status={headStatus} /></TableCell>
-                      {canManage && <TableCell />}
-                    </TableRow>
-                  );
-                })
-                  .concat(
-                    grouped.flatMap((g) =>
-                      g.rows.map((r) => (
-                        <TableRow key={r.id}>
-                          <TableCell className="text-xs pl-8">
-                            <span className="text-muted-foreground">{r.categoryLabel}</span>
-                            <span className="text-muted-foreground block text-[10px]">{r.periodLabel}</span>
-                          </TableCell>
-                          <TableCell className="text-xs">{formatDate(r.dueDate)}</TableCell>
-                          <TableCell className="text-xs text-right tabular-nums">{formatCurrency(r.baseAmount)}</TableCell>
-                          <TableCell className="text-xs text-right tabular-nums text-blue-600">{r.discountAmount > 0 ? `-${formatCurrency(r.discountAmount)}` : "-"}</TableCell>
-                          <TableCell className="text-xs text-right tabular-nums text-red-500">{r.lateFee > 0 ? formatCurrency(r.lateFee) : "-"}</TableCell>
-                          <TableCell className="text-xs text-right tabular-nums">{formatCurrency(r.payableAmount)}</TableCell>
-                          <TableCell className="text-xs text-right tabular-nums text-emerald-600">{formatCurrency(r.paidAmount)}</TableCell>
-                          <TableCell className="text-xs text-right tabular-nums font-semibold">{formatCurrency(r.balance)}</TableCell>
-                          <TableCell className="text-xs"><FeeStatusBadge status={r.status} /></TableCell>
-                          {canManage && (
-                            <TableCell className="text-right">
-                              <div className="inline-flex gap-1">
-                                {r.balance > 0 ? (
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-600" title="Add fine" onClick={() => { fineTargetId.current = r.id; setFineOpen(true); setFineForm({ amount: String(r.lateFeeAmount || 100), reason: `Late fine on ${r.periodLabel}` }); }}>
-                                    <AlertTriangle className="h-3.5 w-3.5" />
-                                  </Button>
-                                ) : <span className="inline-block w-6" />}
-                              </div>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      )),
-                    ),
-                  ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Fee ledger, one section per status */}
+      <FeeSection
+        title="Overdue"
+        accent="red"
+        rows={overdueRows}
+        canManage={canManage}
+        onAddFine={(r) => {
+          fineTargetId.current = r.id;
+          setEditingFine(null);
+          setFineOpen(true);
+          setFineForm({
+            amount: "",
+            reason: `Late fine on ${r.periodLabel}`,
+          });
+        }}
+        onCollect={(r) => {
+          setCollectRowId(r.id);
+          setCollectOpen(true);
+        }}
+      />
+
+      <FeeSection
+        title="Pending"
+        accent="amber"
+        rows={pendingRows}
+        canManage={canManage}
+        onAddFine={(r) => {
+          fineTargetId.current = r.id;
+          setEditingFine(null);
+          setFineOpen(true);
+          setFineForm({
+            amount: "",
+            reason: `Late fine on ${r.periodLabel}`,
+          });
+        }}
+        onCollect={(r) => {
+          setCollectRowId(r.id);
+          setCollectOpen(true);
+        }}
+      />
+
+      <FeeSection
+        title="Paid"
+        accent="emerald"
+        rows={paidRows}
+        canManage={canManage}
+      />
 
       {/* Payments & receipts */}
       <Card>
@@ -351,11 +448,12 @@ export default function FeeStudentProfilePage() {
                 <TableHead>Received By</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Applied To</TableHead>
+                <TableHead className="text-right">Receipt</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {payments.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No payments yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No payments yet.</TableCell></TableRow>
               ) : (
                 payments.map((p) => (
                   <TableRow key={p.id}>
@@ -370,6 +468,16 @@ export default function FeeStudentProfilePage() {
                         return <span key={i} className="block">{inv ? `${inv.categoryLabel} · ${inv.periodLabel}` : a.invoiceId}: {formatCurrency(a.amount)}</span>;
                       })}
                       {p.referenceNumber && <span className="block text-[10px]">Ref: {p.referenceNumber}</span>}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => setReceiptPayment(p)}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-md px-2 py-1 border border-emerald-200 dark:border-emerald-900"
+                        title="Download receipt"
+                      >
+                        <Download className="h-3 w-3" /> Receipt
+                      </button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -391,7 +499,7 @@ export default function FeeStudentProfilePage() {
               <div key={d.id} className="flex items-center justify-between text-xs border rounded-md px-3 py-2">
                 <div>
                   <p className="font-semibold">{d.reason}</p>
-                  <p className="text-muted-foreground text-[10px]">{d.scope} · {d.approvedBy} · {formatDate(d.createdAt.slice(0, 10))}</p>
+                  <p className="text-muted-foreground text-[10px]">{d.periodLabel || "Student"} · {d.approvedBy} · {formatDate(d.createdAt.slice(0, 10))}</p>
                 </div>
                 <span className="font-bold text-blue-600">-{formatCurrency(d.amount)}</span>
               </div>
@@ -412,7 +520,33 @@ export default function FeeStudentProfilePage() {
                     <p className="font-semibold">{f.reason}</p>
                     <p className="text-muted-foreground text-[10px]">{inv ? `${inv.categoryLabel} · ${inv.periodLabel}` : f.invoiceId}</p>
                   </div>
-                  <span className="font-bold text-red-600">+{formatCurrency(f.amount)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-red-600">+{formatCurrency(f.amount)}</span>
+                    {canManage && (
+                      <div className="inline-flex gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingFine(f);
+                            setFineOpen(true);
+                            setFineForm({ amount: String(f.amount), reason: f.reason });
+                          }}
+                          className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+                          title="Edit fine"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteFine(f)}
+                          className="p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-950/40 text-red-500"
+                          title="Delete fine"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -421,22 +555,44 @@ export default function FeeStudentProfilePage() {
       </div>
 
       {collectOpen && (
-        <CollectFeeDialog enrollmentId={enrollmentId} open={collectOpen} onOpenChange={setCollectOpen} />
+        <CollectFeeDialog
+          enrollmentId={enrollmentId}
+          preselectInvoiceId={collectRowId}
+          open={collectOpen}
+          onOpenChange={(o) => { setCollectOpen(o); if (!o) setCollectRowId(null); }}
+        />
+      )}
+
+      <PaymentReceiptDialog
+        payment={receiptPayment}
+        student={student}
+        invoices={invoices}
+        onClose={() => setReceiptPayment(null)}
+      />
+
+      {manageHeadsOpen && (
+        <ManageFeeHeadsDialog
+          enrollmentId={enrollmentId}
+          open={manageHeadsOpen}
+          onOpenChange={setManageHeadsOpen}
+          onSuccess={() => void reload()}
+        />
       )}
 
       {/* Discount dialog */}
       <Dialog open={discountOpen} onOpenChange={setDiscountOpen}>
         <DialogHeader>
           <DialogTitle>Add discount</DialogTitle>
-          <DialogDescription>Merit scholarships, sibling concessions, waivers…</DialogDescription>
+          <DialogDescription>Merit scholarships, sibling concessions, waivers… Applied to the selected fee head of that period.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <div>
-            <label className="text-xs font-semibold block mb-1">Scope</label>
-            <select value={discForm.scope} onChange={(e) => setDiscForm({ ...discForm, scope: e.target.value as DiscountScope })} className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs">
-              <option value="ROW">Single invoice (this ledger)</option>
-              <option value="HEAD">Fee head (whole category)</option>
-              <option value="STUDENT">Whole student ledger</option>
+            <label className="text-xs font-semibold block mb-1">Invoice / Period *</label>
+            <select value={discForm.invoiceId} onChange={(e) => setDiscForm({ ...discForm, invoiceId: e.target.value })} className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs">
+              <option value="">Select an outstanding invoice…</option>
+              {discountOptions.map((r) => (
+                <option key={r.id} value={r.id} disabled={r.balance <= 0}>{r.categoryLabel} · {r.periodLabel} · {formatCurrency(r.balance)}</option>
+              ))}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -449,7 +605,7 @@ export default function FeeStudentProfilePage() {
               <Input value={discForm.reason} onChange={(e) => setDiscForm({ ...discForm, reason: e.target.value })} placeholder="e.g. Merit 25%" />
             </div>
           </div>
-          <p className="text-[10px] text-muted-foreground">Discounts are distributed FIFO against the earliest due rows.</p>
+          <p className="text-[10px] text-muted-foreground">The discount applies to the selected fee head for that period and reduces its payable by the entered amount.</p>
         </div>
         <div className="flex justify-end space-x-2 pt-4 border-t border-border mt-4">
           <Button variant="outline" onClick={() => setDiscountOpen(false)} className="text-xs">Cancel</Button>
@@ -458,10 +614,14 @@ export default function FeeStudentProfilePage() {
       </Dialog>
 
       {/* Fine dialog */}
-      <Dialog open={fineOpen} onOpenChange={setFineOpen}>
+      <Dialog open={fineOpen} onOpenChange={(o) => { setFineOpen(o); if (!o) setEditingFine(null); }}>
         <DialogHeader>
-          <DialogTitle>Add fine</DialogTitle>
-          <DialogDescription>Late fine or penalty attached to the selected invoice.</DialogDescription>
+          <DialogTitle>{editingFine ? "Edit fine" : "Add fine"}</DialogTitle>
+          <DialogDescription>
+            {editingFine
+              ? "Change the amount or reason. Totals update automatically."
+              : "Late fine or penalty attached to the selected invoice."}
+          </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3 pt-2">
           <div>
@@ -475,36 +635,10 @@ export default function FeeStudentProfilePage() {
         </div>
         <div className="flex justify-end space-x-2 pt-4 border-t border-border mt-4">
           <Button variant="outline" onClick={() => setFineOpen(false)} className="text-xs">Cancel</Button>
-          <Button onClick={() => { const row = invoices.find((r) => r.id === fineTargetId.current); if (row) handleFine(row); }} className="bg-red-600 hover:bg-red-700 text-xs">Add fine</Button>
+          <Button onClick={() => { const row = invoices.find((r) => r.id === (editingFine ? editingFine.invoiceId : fineTargetId.current)); if (row) handleFine(row); }} className="bg-red-600 hover:bg-red-700 text-xs">{editingFine ? "Save changes" : "Add fine"}</Button>
         </div>
       </Dialog>
 
-      {/* Add-on dialog */}
-      <Dialog open={addonOpen} onOpenChange={setAddonOpen}>
-        <DialogHeader>
-          <DialogTitle>Attach add-on</DialogTitle>
-          <DialogDescription>Billing begins on the next invoice run for this student.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 pt-2">
-          <div>
-            <label className="text-xs font-semibold block mb-1">Add-on fee head</label>
-            <select value={addonForm.feeCategoryId} onChange={(e) => setAddonForm({ ...addonForm, feeCategoryId: e.target.value })} className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs">
-              <option value="">Select…</option>
-              {categories.filter((c) => c.isAddOn).map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-semibold block mb-1">Monthly amount</label>
-            <Input type="number" value={addonForm.amount} onChange={(e) => setAddonForm({ ...addonForm, amount: e.target.value })} placeholder="1500" />
-          </div>
-        </div>
-        <div className="flex justify-end space-x-2 pt-4 border-t border-border mt-4">
-          <Button variant="outline" onClick={() => setAddonOpen(false)} className="text-xs">Cancel</Button>
-          <Button onClick={handleAddon} className="bg-blue-600 hover:bg-blue-700 text-xs">Attach add-on</Button>
-        </div>
-      </Dialog>
-    </div>
+      </div>
   );
 }

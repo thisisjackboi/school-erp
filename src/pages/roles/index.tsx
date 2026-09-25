@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 import {
   createRole,
@@ -63,6 +64,8 @@ export default function RolesPage() {
   const [isSavingRole, setIsSavingRole] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
+
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
 
@@ -292,6 +295,14 @@ export default function RolesPage() {
         accessToken,
       );
 
+      setSuccessMessage(
+        `Permissions for "${selectedRole.name}" saved successfully.`,
+      );
+      setError(null);
+
+      // Auto-clear success after 4 seconds
+      setTimeout(() => setSuccessMessage(null), 4000);
+
       const updatedRoles = await getRoles(1, 100, accessToken);
 
       setRoles(updatedRoles.items);
@@ -338,7 +349,8 @@ export default function RolesPage() {
   const toggleModule = (module: string) => {
     setExpandedModules((current) => ({
       ...current,
-      [module]: current[module] === undefined ? false : !current[module],
+      // undefined means expanded by default; explicitly set to true/false to toggle
+      [module]: current[module] !== false ? false : true,
     }));
   };
 
@@ -386,6 +398,7 @@ export default function RolesPage() {
           </p>
         </div>
 
+        <PermissionGate permission="roles.create">
         <Button
           onClick={openCreateModal}
           className="bg-blue-600 text-xs hover:bg-blue-700"
@@ -393,6 +406,7 @@ export default function RolesPage() {
           <Plus className="mr-1.5 h-3.5 w-3.5" />
           Create Role
         </Button>
+      </PermissionGate>
       </div>
 
       {/* Error */}
@@ -401,6 +415,13 @@ export default function RolesPage() {
           {error}
         </div>
       )}
+
+      {/* Success */}
+      {successMessage && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400">
+          {successMessage}
+        </div>
+      )}    
 
       {/* Main */}
       {isLoading ? (
@@ -470,37 +491,41 @@ export default function RolesPage() {
                         </button>
 
                         <div className="flex shrink-0 items-center gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditModal(role)}
-                            disabled={role.isSystemRole}
-                            className="h-8 w-8 text-slate-500 hover:text-blue-600"
-                            title={
-                              role.isSystemRole
-                                ? "System role cannot be renamed"
-                                : "Edit role"
-                            }
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
+                          <PermissionGate permission="roles.update">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditModal(role)}
+                              disabled={role.isSystemRole}
+                              className="h-8 w-8 text-slate-500 hover:text-blue-600"
+                              title={
+                                role.isSystemRole
+                                  ? "System role cannot be renamed"
+                                  : "Edit role"
+                              }
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </PermissionGate>
 
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteRole(role)}
-                            disabled={role.isSystemRole}
-                            className="h-8 w-8 text-slate-500 hover:text-red-600"
-                            title={
-                              role.isSystemRole
-                                ? "System role cannot be deleted"
-                                : "Delete role"
-                            }
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          <PermissionGate permission="roles.delete">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteRole(role)}
+                              disabled={role.isSystemRole}
+                              className="h-8 w-8 text-slate-500 hover:text-red-600"
+                              title={
+                                role.isSystemRole
+                                  ? "System role cannot be deleted"
+                                  : "Delete role"
+                              }
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </PermissionGate>
                         </div>
                       </div>
                     </div>
@@ -669,14 +694,16 @@ export default function RolesPage() {
 
                   {selectedRole && (
                     <div className="flex justify-end border-t pt-4">
-                      <Button
-                        type="button"
-                        onClick={handleSavePermissions}
-                        disabled={isSavingPermissions || isPermissionLoading}
-                        className="bg-blue-600 text-xs hover:bg-blue-700"
-                      >
-                        {isSavingPermissions ? "Saving..." : "Save Permissions"}
-                      </Button>
+                      <PermissionGate permission="roles.update">
+                        <Button
+                          type="button"
+                          onClick={handleSavePermissions}
+                          disabled={isSavingPermissions || isPermissionLoading}
+                          className="bg-blue-600 text-xs hover:bg-blue-700"
+                        >
+                          {isSavingPermissions ? "Saving..." : "Save Permissions"}
+                        </Button>
+                      </PermissionGate>
                     </div>
                   )}
                 </div>

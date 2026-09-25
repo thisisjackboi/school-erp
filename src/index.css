@@ -107,6 +107,38 @@
     left: 0;
     top: 0;
     width: 100%;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  /* Receipts printed from inside a modal: detach the printable area from the
+     fixed overlay (which clips tall content to one page) so it starts at the
+     top of the page and paginates across pages instead of printing half. */
+  body > div.fixed:has(#printable-area) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+  body > div.fixed:has(#printable-area) > div {
+    position: static;
+    margin: 0;
+    padding: 0;
+    max-width: none;
+    border: none;
+    box-shadow: none;
+  }
+  body > div.fixed:has(#printable-area) #printable-area {
+    position: static;
+  }
+  #printable-area thead {
+    display: table-header-group !important;
+  }
+  #printable-area tbody tr {
+    break-inside: avoid;
   }
   .no-print {
     display: none !important;

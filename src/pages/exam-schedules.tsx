@@ -10,6 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth/auth-context";
+import {
+  formatDisplayDate,
+  formatTimeOfDay,
+  toDateInputValue,
+  toTimeInputValue,
+} from "@/lib/dates";
 
 import {
   getExamSchedules, createExamSchedule, updateExamSchedule, deleteExamSchedule,
@@ -116,58 +122,13 @@ export default function ExamSchedulesPage() {
     return ex?.name || "N/A";
   };
 
-  const formatTimeDisplay = (val: unknown): string => {
-    if (!val) return "";
-    let h = 0, m = 0;
-    if (typeof val === "string") {
-      const match = val.match(/^(\d{1,2}):(\d{2})/);
-      if (match) { h = Number(match[1]); m = Number(match[2]); }
-      else return val;
-    } else if (val instanceof Date) {
-      h = val.getUTCHours();
-      m = val.getUTCMinutes();
-    } else return String(val);
-    const period = h >= 12 ? "PM" : "AM";
-    const h12 = h % 12 || 12;
-    return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
-  };
+  const formatTimeDisplay = (val: unknown): string => formatTimeOfDay(val);
 
-  const formatTimeForInput = (val: unknown): string => {
-    if (!val) return "";
-    if (typeof val === "string") {
-      if (/^\d{2}:\d{2}/.test(val)) return val.substring(0, 5);
-      const d = new Date(val);
-      return isNaN(d.getTime()) ? "" : d.toISOString().substring(14, 19);
-    }
-    if (val instanceof Date) {
-      return isNaN(val.getTime()) ? "" : val.toISOString().substring(14, 19);
-    }
-    return "";
-  };
+  const formatTimeForInput = (val: unknown): string => toTimeInputValue(val);
 
-  const safeDateInput = (val: unknown): string => {
-    if (!val) return "";
-    if (typeof val === "string") {
-      const d = new Date(val);
-      return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
-    }
-    if (val instanceof Date) {
-      return isNaN(val.getTime()) ? "" : val.toISOString().split("T")[0];
-    }
-    return "";
-  };
+  const safeDateInput = (val: unknown): string => toDateInputValue(val);
 
-  const safeDateStr = (val: unknown): string => {
-    if (!val) return "N/A";
-    if (typeof val === "string") {
-      const d = new Date(val);
-      return isNaN(d.getTime()) ? "N/A" : d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
-    }
-    if (val instanceof Date) {
-      return isNaN(val.getTime()) ? "N/A" : val.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
-    }
-    return "N/A";
-  };
+  const safeDateStr = (val: unknown): string => formatDisplayDate(val);
 
   const openCreate = (examId?: string) => {
     setEditing(null);

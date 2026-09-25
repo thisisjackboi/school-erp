@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
+import { formatDisplayDate } from "@/lib/dates";
 
 import {
   getExamTypes, createExamType, updateExamType, deleteExamType,
@@ -148,10 +150,12 @@ export default function ExamTypesPage() {
           <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Exam Types</h1>
           <p className="text-xs text-muted-foreground mt-1">Define categories of examinations (e.g. Unit Test, Mid-Term, Final)</p>
         </div>
-        <Button size="sm" onClick={openCreate} className="bg-blue-600 hover:bg-blue-700 text-xs">
-          <Plus className="h-3 w-3 mr-1" />
-          Add Exam Type
-        </Button>
+        <PermissionGate permission="exam-types.create">
+          <Button size="sm" onClick={openCreate} className="bg-blue-600 hover:bg-blue-700 text-xs">
+            <Plus className="h-3 w-3 mr-1" />
+            Add Exam Type
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Table */}
@@ -187,17 +191,19 @@ export default function ExamTypesPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {type.createdAt
-                        ? new Date(type.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
-                        : "—"}
+                      {formatDisplayDate(type.createdAt, "—")}
                     </TableCell>
                     <TableCell className="text-right space-x-1">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(type)} className="h-8 w-8 p-0">
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => promptDelete(type)} className="h-8 w-8 p-0 text-rose-600">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <PermissionGate permission="exam-types.update">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(type)} className="h-8 w-8 p-0">
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </PermissionGate>
+                      <PermissionGate permission="exam-types.delete">
+                        <Button variant="ghost" size="sm" onClick={() => promptDelete(type)} className="h-8 w-8 p-0 text-rose-600">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </PermissionGate>
                     </TableCell>
                   </TableRow>
                 ))}

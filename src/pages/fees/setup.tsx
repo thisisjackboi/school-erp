@@ -19,15 +19,14 @@ import { useFees } from "@/lib/fees-fm/store";
 import { useFeeAccess } from "@/lib/fees-fm/access";
 import { useToast } from "@/components/ui/toast";
 import { formatCurrency } from "@/lib/utils";
-import { uid } from "@/lib/fees-fm/seed";
+import { uid } from "@/lib/fees-fm/helpers";
 import type { FeeCategory, FeeStructure, FeeStructureItem, RecurringInterval } from "@/lib/fees-fm/types";
 
 export default function FeeSetupPage() {
   const {
-    categories, addCategory, updateCategory, saveStructure, assignStructureToClass,
-    state, studentsInClass, session, generateForClass, classes,
+    categories, addCategory, updateCategory, saveStructure,
+    structures, studentsInClass, session, generateForClass, classes,
   } = useFees();
-  const structures = state.structures;
   const { canManage } = useFeeAccess();
   const { toast } = useToast();
 
@@ -113,10 +112,8 @@ export default function FeeSetupPage() {
             categoryName: cat.name,
             amount,
             dueDay: 10,
-            lateFeeAmount: cat.recurringInterval === "ONCE" ? 0 : 100,
+            lateFeeAmount: 0,
             gracePeriodDays: 7,
-            proratable: cat.recurringInterval === "MONTHLY",
-            isAddOn: cat.isAddOn,
           },
         ],
       };
@@ -129,22 +126,24 @@ export default function FeeSetupPage() {
       toast("Error", "Add at least one fee head to the structure.", "error");
       return;
     }
-    saveStructure(draft);
-    toast("Structure saved", `${draft.className} fee structure saved.`, "success");
+    saveStructure(draft)
+      .then(() => toast("Structure saved", `${draft!.className} fee structure saved.`, "success"))
+      .catch((e) => toast("Save failed", e instanceof Error ? e.message : "Could not save structure.", "error"));
   };
 
   const handleAssign = () => {
     if (!draft) return;
-    handleSaveStructure();
     const classId = classes.find((c) => c.name === draft.className)?.id;
     const targetStudents = studentsInClass(draft.className, classId);
     if (!targetStudents.length) {
       toast("No students", `${draft.className} has no enrolled students.`, "info");
       return;
     }
-    assignStructureToClass(draft.className, draft.id);
-    generateForClass(draft.className, classId);
-    toast("Assignments created", `Applied ${draft.className} structure to ${targetStudents.length} student(s).`, "success");
+    generateForClass(draft.className, classId)
+      .then((generated) => {
+        toast("Assignments created", `Applied ${draft.className} structure to ${targetStudents.length} student(s) (${generated} generated).`, "success");
+      })
+      .catch((e) => toast("Failed", e instanceof Error ? e.message : "Could not generate invoices.", "error"));
   };
 
   const resetToExisting = () => {
@@ -186,14 +185,13 @@ export default function FeeSetupPage() {
       toast("Error", "Fee head name and code are required.", "error");
       return;
     }
-    if (editingCatId) {
-      updateCategory({ ...catForm, id: editingCatId } as FeeCategory);
-      toast("Fee head updated", `${catForm.name} updated.`, "success");
-    } else {
-      addCategory({ ...catForm, id: uid("cat") });
-      toast("Fee head added", `${catForm.name} added. Set it in class structures to use it.`, "success");
-    }
-    setNewCatOpen(false);
+    const action = editingCatId
+      ? updateCategory({ ...catForm, id: editingCatId } as FeeCategory)
+      : addCategory({ ...catForm, id: uid("cat") });
+    Promise.resolve(action)
+      .then(() => toast(editingCatId ? "Fee head updated" : "Fee head added", editingCatId ? `${catForm.name} updated.` : `${catForm.name} added. Set it in class structures to use it.`, "success"))
+      .catch((e) => toast("Save failed", e instanceof Error ? e.message : "Could not save fee head.", "error"))
+      .finally(() => setNewCatOpen(false));
   };
 
   if (!canManage) {
@@ -304,19 +302,17 @@ export default function FeeSetupPage() {
                       <TableHead className="text-center">Due Day</TableHead>
                       <TableHead className="text-center">Grace (days)</TableHead>
                       <TableHead className="text-right">Late Fee</TableHead>
-                      <TableHead className="text-center">Prorata</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {draft.items.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">No fee heads assigned to this class yet</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">No fee heads assigned to this class yet</TableCell></TableRow>
                     ) : (
                       draft.items.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="text-xs font-medium">
                             {item.categoryName}
-                            {item.isAddOn && <span className="text-blue-600 text-[10px] ml-1">add-on</span>}
                           </TableCell>
                           <TableCell className="text-right">
                             <Input type="number" className="h-7 w-28 ml-auto text-xs text-right tabular-nums" value={item.amount} onChange={(e) => updateItem(item.id, { amount: Number(e.target.value) })} />
@@ -329,9 +325,6 @@ export default function FeeSetupPage() {
                           </TableCell>
                           <TableCell className="text-right">
                             <Input type="number" className="h-7 w-24 ml-auto text-xs text-right tabular-nums" value={item.lateFeeAmount} onChange={(e) => updateItem(item.id, { lateFeeAmount: Number(e.target.value) })} />
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <input type="checkbox" className="accent-blue-600" checked={item.proratable} onChange={(e) => updateItem(item.id, { proratable: e.target.checked })} />
                           </TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => setDraft((p) => (p ? { ...p, items: p.items.filter((i) => i.id !== item.id) } : p))}>

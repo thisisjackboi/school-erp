@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 import {
   createSubject,
@@ -197,13 +198,15 @@ export default function SubjectsPage() {
           </p>
         </div>
 
-        <Button
-          onClick={openCreateModal}
-          className="bg-blue-600 text-xs hover:bg-blue-700"
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          Add Subject
-        </Button>
+        <PermissionGate permission="subjects.create">
+          <Button
+            onClick={openCreateModal}
+            className="bg-blue-600 text-xs hover:bg-blue-700"
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Add Subject
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Error */}
@@ -231,13 +234,15 @@ export default function SubjectsPage() {
               Create your first subject to begin.
             </p>
 
-            <Button
-              onClick={openCreateModal}
-              className="mt-4 bg-blue-600 text-xs hover:bg-blue-700"
-            >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Create First Subject
-            </Button>
+            <PermissionGate permission="subjects.create">
+              <Button
+                onClick={openCreateModal}
+                className="mt-4 bg-blue-600 text-xs hover:bg-blue-700"
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Create First Subject
+              </Button>
+            </PermissionGate>
           </CardContent>
         </Card>
       ) : (
@@ -265,17 +270,19 @@ export default function SubjectsPage() {
                     </div>
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() =>
-                      openEditModal(subject)
-                    }
-                    className="h-8 w-8 shrink-0 text-slate-500 hover:text-blue-600"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
+                  <PermissionGate permission="subjects.update">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        openEditModal(subject)
+                      }
+                      className="h-8 w-8 shrink-0 text-slate-500 hover:text-blue-600"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </PermissionGate>
                 </div>
               </CardHeader>
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 import {
   createSection,
@@ -260,6 +261,7 @@ export default function SectionsPage() {
           </p>
         </div>
 
+        <PermissionGate permission="sections.create">
         <Button
           onClick={openCreateModal}
           className="bg-blue-600 text-xs hover:bg-blue-700"
@@ -267,6 +269,7 @@ export default function SectionsPage() {
           <Plus className="mr-1.5 h-3.5 w-3.5" />
           Add Section
         </Button>
+      </PermissionGate>
       </div>
 
       {/* Error */}
@@ -293,6 +296,7 @@ export default function SectionsPage() {
               Create your first section to begin managing the class structure.
             </p>
 
+            <PermissionGate permission="sections.create">
             <Button
               onClick={openCreateModal}
               className="mt-4 bg-blue-600 text-xs hover:bg-blue-700"
@@ -300,6 +304,7 @@ export default function SectionsPage() {
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Create First Section
             </Button>
+          </PermissionGate>
           </CardContent>
         </Card>
       ) : (
@@ -360,6 +365,7 @@ export default function SectionsPage() {
                             </p>
                           </div>
 
+                          <PermissionGate permission="sections.update">
                           <Button
                             type="button"
                             variant="ghost"
@@ -369,6 +375,7 @@ export default function SectionsPage() {
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
+                        </PermissionGate>
                         </div>
                       ))}
                   </div>

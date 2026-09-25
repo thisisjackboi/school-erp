@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
 import {
   createEmployee,
   deleteEmployee,
@@ -356,6 +357,7 @@ export default function EmployeesPage() {
           </p>
         </div>
 
+        <PermissionGate permission="employees.create">
         <button
           type="button"
           onClick={openCreateModal}
@@ -363,6 +365,7 @@ export default function EmployeesPage() {
         >
           + Create Employee
         </button>
+      </PermissionGate>
       </div>
 
       {error && (
@@ -440,21 +443,25 @@ export default function EmployeesPage() {
                       View
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => openEditModal(employee)}
-                      className="mr-2 rounded-md border px-3 py-1.5 hover:bg-gray-50"
-                    >
-                      Edit
-                    </button>
+                    <PermissionGate permission="employees.update">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(employee)}
+                        className="mr-2 rounded-md border px-3 py-1.5 hover:bg-gray-50"
+                      >
+                        Edit
+                      </button>
+                    </PermissionGate>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(employee.id)}
-                      className="rounded-md border border-red-200 px-3 py-1.5 text-red-600 hover:bg-red-50"
-                    >
-                      Delete
-                    </button>
+                    <PermissionGate permission="employees.delete">
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(employee.id)}
+                        className="rounded-md border border-red-200 px-3 py-1.5 text-red-600 hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
+                    </PermissionGate>
                   </td>
                 </tr>
               ))

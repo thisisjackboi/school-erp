@@ -4,12 +4,14 @@ import { Search, Command, ArrowRight } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { MODULE_ROUTES } from "@/lib/permissions";
+import { useRole } from "@/lib/permissions";
 import { DUMMY_STUDENTS, DUMMY_TEACHERS } from "@/lib/dummy-data";
 
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
+  const { hasPermission } = useRole();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -22,8 +24,10 @@ export function GlobalSearch() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const filteredModules = MODULE_ROUTES.filter((m) =>
-    m.title.toLowerCase().includes(query.toLowerCase())
+  const filteredModules = MODULE_ROUTES.filter(
+    (m) =>
+      (!m.permission || hasPermission(m.permission)) &&
+      m.title.toLowerCase().includes(query.toLowerCase()),
   );
 
   const filteredStudents = DUMMY_STUDENTS.filter(

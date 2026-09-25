@@ -22,6 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
+import { formatDisplayDate, toDateInputValue } from "@/lib/dates";
 
 import type { AcademicSession } from "@/lib/types/academic-session";
 
@@ -54,15 +56,11 @@ const emptyForm: SessionFormData = {
 };
 
 function formatDate(date: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(date));
+  return formatDisplayDate(date);
 }
 
 function formatDateForInput(date: string) {
-  return new Date(date).toISOString().split("T")[0];
+  return toDateInputValue(date);
 }
 
 export default function SessionsPage() {
@@ -269,14 +267,16 @@ export default function SessionsPage() {
           </p>
         </div>
 
-        <Button
-          onClick={handleCreate}
-          className="bg-blue-600 text-xs hover:bg-blue-700"
-        >
-          <Plus className="mr-1.5 h-4 w-4" />
+        <PermissionGate permission="academic-sessions.create">
+          <Button
+            onClick={handleCreate}
+            className="bg-blue-600 text-xs hover:bg-blue-700"
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
 
-          New Academic Session
-        </Button>
+            New Academic Session
+          </Button>
+        </PermissionGate>
       </div>
 
       {error && !isFormOpen && (
@@ -312,14 +312,16 @@ export default function SessionsPage() {
               and student records.
             </p>
 
-            <Button
-              onClick={handleCreate}
-              className="mt-5 bg-blue-600 text-xs hover:bg-blue-700"
-            >
-              <Plus className="mr-1.5 h-4 w-4" />
+            <PermissionGate permission="academic-sessions.create">
+              <Button
+                onClick={handleCreate}
+                className="mt-5 bg-blue-600 text-xs hover:bg-blue-700"
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
 
-              Create Academic Session
-            </Button>
+                Create Academic Session
+              </Button>
+            </PermissionGate>
           </CardContent>
         </Card>
       ) : (
@@ -393,6 +395,7 @@ export default function SessionsPage() {
                 </div>
 
                 <div className="flex flex-col gap-2 sm:flex-row">
+                  <PermissionGate permission="academic-sessions.update">
                   <Button
                     variant="outline"
                     size="sm"
@@ -405,21 +408,24 @@ export default function SessionsPage() {
 
                     Edit Session
                   </Button>
+                </PermissionGate>
 
                   {!session.isCurrent && (
-                    <Button
-                      size="sm"
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      onClick={() =>
-                        handleSetCurrent(
-                          session.id,
-                        )
-                      }
-                    >
-                      <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                    <PermissionGate permission="academic-sessions.update">
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-blue-600 hover:bg-blue-700"
+                        onClick={() =>
+                          handleSetCurrent(
+                            session.id,
+                          )
+                        }
+                      >
+                        <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
 
-                      Set as Current
-                    </Button>
+                        Set as Current
+                      </Button>
+                    </PermissionGate>
                   )}
                 </div>
               </CardContent>

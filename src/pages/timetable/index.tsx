@@ -13,6 +13,9 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
+import { useRole } from "@/lib/permissions";
+import { formatTimeOfDay } from "@/lib/dates";
 import { getAcademicSessions } from "@/lib/api/academic-sessions.api";
 import { getClasses } from "@/lib/api/classes.api";
 import { getSections } from "@/lib/api/sections.api";
@@ -79,6 +82,8 @@ const DAYS_OF_WEEK = [
 export default function TimetablePage() {
   const { accessToken } = useAuth();
   const { toast } = useToast();
+  const { hasPermission } = useRole();
+  const canEditSlot = hasPermission("timetable-slots.update");
 
   // Active view tab: "schedule" grid vs "teacher-matrix" availability
   const [activeTab, setActiveTab] = useState<"schedule" | "teacher-matrix">("schedule");
@@ -145,22 +150,22 @@ export default function TimetablePage() {
           employeesData,
           subjectsData,
         ] = await Promise.all([
-          getAcademicSessions(accessToken),
-          getClasses(accessToken),
-          getSections(accessToken),
-          getTeacherSubjectAssignments(accessToken),
-          getPeriods(accessToken),
+          getAcademicSessions(accessToken).catch(() => []),
+          getClasses(accessToken).catch(() => []),
+          getSections(accessToken).catch(() => []),
+          getTeacherSubjectAssignments(accessToken).catch(() => []),
+          getPeriods(accessToken).catch(() => []),
           getEmployees(accessToken).catch(() => []),
           getSubjects(accessToken).catch(() => []),
         ]);
 
-        setSessions(sessionsData);
-        setClasses(classesData);
-        setSections(sectionsData);
-        setAssignments(assignmentsData);
-        setPeriods(periodsData);
-        setEmployees(employeesData);
-        setSubjects(subjectsData);
+        setSessions(sessionsData || []);
+        setClasses(classesData || []);
+        setSections(sectionsData || []);
+        setAssignments(assignmentsData || []);
+        setPeriods(periodsData || []);
+        setEmployees(employeesData || []);
+        setSubjects(subjectsData || []);
 
         // Auto-select current session if available
         const currSession = sessionsData.find((s) => s.isCurrent) || sessionsData[0];
@@ -216,26 +221,24 @@ export default function TimetablePage() {
       setLoadingSlots(true);
       const sessionSlots = await getTimetableSlots(accessToken, {
         ...(selectedSessionId ? { academicSessionId: selectedSessionId } : {}),
-      });
+      }).catch(() => []);
 
-      setAllSessionSlots(sessionSlots);
+      const safeSlots = sessionSlots || [];
+      setAllSessionSlots(safeSlots);
 
       // Filter slots for active section grid
       if (selectedSectionId) {
         setSlots(
-          sessionSlots.filter(
+          safeSlots.filter(
             (s) => s.teacherSubjectAssignment?.sectionId === selectedSectionId,
           ),
         );
       } else {
-        setSlots(sessionSlots);
+        setSlots(safeSlots);
       }
     } catch (err) {
-      toast(
-        "Failed to load timetable slots",
-        err instanceof Error ? err.message : "Unable to fetch slots",
-        "error",
-      );
+      setAllSessionSlots([]);
+      setSlots([]);
     } finally {
       setLoadingSlots(false);
     }
@@ -565,14 +568,7 @@ export default function TimetablePage() {
   };
 
   // Helper to render period time string
-  const formatTime = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } catch {
-      return "";
-    }
-  };
+  const formatTime = (dateStr: string) => formatTimeOfDay(dateStr);
 
   const selectedSectionObj = sections.find((s) => s.id === selectedSectionId);
   const selectedClassObj = classes.find((c) => c.id === selectedClassId);
@@ -633,6 +629,7 @@ export default function TimetablePage() {
             </button>
           </div>
 
+          <PermissionGate permission="timetable-periods.create" anyPermission={["timetable-periods.create", "timetable-periods.update"]}>
           <Button
             onClick={() => handleOpenPeriodDialog()}
             variant="outline"
@@ -641,6 +638,7 @@ export default function TimetablePage() {
           >
             <Settings className="mr-1.5 h-3.5 w-3.5" /> Manage Periods
           </Button>
+        </PermissionGate>
 
           <Button onClick={() => window.print()} variant="outline" size="sm" className="text-xs">
             <Printer className="mr-1.5 h-3.5 w-3.5" /> Print Schedule
@@ -759,6 +757,7 @@ export default function TimetablePage() {
                 )}
               </CardTitle>
 
+              <PermissionGate permission="timetable-slots.create">
               <Button
                 size="sm"
                 onClick={() => handleOpenSlotDialog(1, periods[0]?.id || "")}
@@ -767,6 +766,7 @@ export default function TimetablePage() {
               >
                 <Plus className="mr-1 h-3.5 w-3.5" /> Assign New Slot
               </Button>
+            </PermissionGate>
             </CardHeader>
 
             <CardContent className="p-0 overflow-x-auto">
@@ -777,6 +777,7 @@ export default function TimetablePage() {
                   <p className="text-muted-foreground text-[11px] max-w-sm mx-auto">
                     Set up school periods (e.g. Period 1: 08:30-09:15) to start creating weekly class schedules.
                   </p>
+                  <PermissionGate permission="timetable-periods.create">
                   <Button
                     size="sm"
                     onClick={() => handleOpenPeriodDialog()}
@@ -784,6 +785,7 @@ export default function TimetablePage() {
                   >
                     <Plus className="mr-1 h-3.5 w-3.5" /> Create First Period
                   </Button>
+                </PermissionGate>
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse text-xs min-w-[700px]">
@@ -829,8 +831,16 @@ export default function TimetablePage() {
                             <td key={day.id} className="p-1.5 border text-center align-top h-20">
                               {slot ? (
                                 <div
-                                  onClick={() => handleOpenSlotDialog(day.id, period.id, slot)}
-                                  className="group relative p-2 rounded-md bg-blue-50/80 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 hover:border-blue-500 hover:shadow-xs transition-all cursor-pointer text-left h-full flex flex-col justify-between"
+                                  onClick={
+                                    canEditSlot
+                                      ? () => handleOpenSlotDialog(day.id, period.id, slot)
+                                      : undefined
+                                  }
+                                  className={`group relative p-2 rounded-md bg-blue-50/80 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-left h-full flex flex-col justify-between ${
+                                    canEditSlot
+                                      ? "hover:border-blue-500 hover:shadow-xs transition-all cursor-pointer"
+                                      : ""
+                                  }`}
                                 >
                                   <div>
                                     <div className="flex items-center justify-between">
@@ -853,18 +863,22 @@ export default function TimetablePage() {
 
                                   <div className="mt-1 flex items-center justify-between text-[9px] text-muted-foreground pt-1 border-t border-blue-100 dark:border-blue-900/50">
                                     <span>{slot.room ? `Room: ${slot.room}` : "No Room"}</span>
-                                    <Pencil className="h-3 w-3 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    {canEditSlot && (
+                                      <Pencil className="h-3 w-3 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    )}
                                   </div>
                                 </div>
                               ) : (
-                                <button
-                                  onClick={() => handleOpenSlotDialog(day.id, period.id)}
-                                  disabled={!selectedSectionId}
-                                  className="w-full h-full min-h-[64px] rounded border border-dashed border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 text-muted-foreground hover:text-blue-600 flex flex-col items-center justify-center gap-1 transition-colors text-[10px] p-2 disabled:opacity-40"
-                                >
-                                  <Plus className="h-3.5 w-3.5 opacity-60" />
-                                  <span>Assign Slot</span>
-                                </button>
+                                <PermissionGate permission="timetable-slots.create">
+                                  <button
+                                    onClick={() => handleOpenSlotDialog(day.id, period.id)}
+                                    disabled={!selectedSectionId}
+                                    className="w-full h-full min-h-[64px] rounded border border-dashed border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 text-muted-foreground hover:text-blue-600 flex flex-col items-center justify-center gap-1 transition-colors text-[10px] p-2 disabled:opacity-40"
+                                  >
+                                    <Plus className="h-3.5 w-3.5 opacity-60" />
+                                    <span>Assign Slot</span>
+                                  </button>
+                                </PermissionGate>
                               )}
                             </td>
                           );
@@ -1067,18 +1081,20 @@ export default function TimetablePage() {
 
           <DialogFooter className="pt-3 border-t flex items-center justify-between">
             {editingPeriod ? (
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  setIsPeriodDialogOpen(false);
-                  handleDeletePeriod(editingPeriod.id);
-                }}
-                disabled={submittingPeriod}
-              >
-                <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
-              </Button>
+              <PermissionGate permission="timetable-periods.delete">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setIsPeriodDialogOpen(false);
+                    handleDeletePeriod(editingPeriod.id);
+                  }}
+                  disabled={submittingPeriod}
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+                </Button>
+              </PermissionGate>
             ) : (
               <div />
             )}
@@ -1239,15 +1255,17 @@ export default function TimetablePage() {
 
           <DialogFooter className="pt-3 border-t flex items-center justify-between">
             {editingSlot ? (
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => handleDeleteSlot(editingSlot.id)}
-                disabled={submittingSlot}
-              >
-                <Trash2 className="mr-1 h-3.5 w-3.5" /> Remove Slot
-              </Button>
+              <PermissionGate permission="timetable-slots.delete">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteSlot(editingSlot.id)}
+                  disabled={submittingSlot}
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" /> Remove Slot
+                </Button>
+              </PermissionGate>
             ) : (
               <div />
             )}

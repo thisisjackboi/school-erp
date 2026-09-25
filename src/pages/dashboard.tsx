@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useRole } from "@/lib/permissions";
+import { useRole, pickHighestRole } from "@/lib/permissions";
 import { AdminDashboard } from "@/components/dashboards/admin-dashboard";
 import { PrincipalDashboard } from "@/components/dashboards/principal-dashboard";
 import { TeacherDashboard } from "@/components/dashboards/teacher-dashboard";
@@ -18,45 +18,37 @@ import {
   AcademicCoordinatorDashboard,
   ClassTeacherDashboard,
 } from "@/components/dashboards/other-dashboards";
-import { ShieldCheck } from "lucide-react";
+
+const ROLE_DASHBOARD_MAP: Record<string, React.ComponentType> = {
+  SUPER_ADMIN: AdminDashboard,
+  ADMIN: AdminDashboard,
+  SYSTEM_ADMIN: AdminDashboard,
+  PRINCIPAL: PrincipalDashboard,
+  VICE_PRINCIPAL: VicePrincipalDashboard,
+  ACADEMIC_COORDINATOR: AcademicCoordinatorDashboard,
+  ACCOUNTANT: AccountantDashboard,
+  HR_MANAGER: HRDashboard,
+  TEACHER: TeacherDashboard,
+  CLASS_TEACHER: ClassTeacherDashboard,
+  LIBRARIAN: LibrarianDashboard,
+  RECEPTIONIST: ReceptionistDashboard,
+  TRANSPORT_MANAGER: TransportDashboard,
+  HOSTEL_WARDEN: HostelDashboard,
+  STUDENT: StudentDashboard,
+  PARENT: ParentDashboard,
+  GUARDIAN: ParentDashboard,
+};
 
 export default function DashboardPage() {
-  const { activeRole, roleDetails } = useRole();
+  const { activeRoleName, userRoles } = useRole();
 
-  const renderDashboard = () => {
-    switch (activeRole) {
-      case "administrator":
-        return <AdminDashboard />;
-      case "principal":
-        return <PrincipalDashboard />;
-      case "vice_principal":
-        return <VicePrincipalDashboard />;
-      case "academic_coordinator":
-        return <AcademicCoordinatorDashboard />;
-      case "accountant":
-        return <AccountantDashboard />;
-      case "hr_manager":
-        return <HRDashboard />;
-      case "teacher":
-        return <TeacherDashboard />;
-      case "class_teacher":
-        return <ClassTeacherDashboard />;
-      case "librarian":
-        return <LibrarianDashboard />;
-      case "receptionist":
-        return <ReceptionistDashboard />;
-      case "transport_manager":
-        return <TransportDashboard />;
-      case "hostel_warden":
-        return <HostelDashboard />;
-      case "student":
-        return <StudentDashboard />;
-      case "parent":
-        return <ParentDashboard />;
-      default:
-        return <AdminDashboard />;
-    }
-  };
+  const normalized =
+    (pickHighestRole(userRoles)?.name ?? activeRoleName).toUpperCase();
+
+  const Dashboard =
+    ROLE_DASHBOARD_MAP[normalized] ??
+    ROLE_DASHBOARD_MAP["SUPER_ADMIN"] ??
+    AdminDashboard;
 
   return (
     <div className="space-y-4">
@@ -65,18 +57,18 @@ export default function DashboardPage() {
         <div>
           <div className="flex items-center space-x-2">
             <h1 className="text-lg font-bold">PrismaEd+ Workspace</h1>
-            <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${roleDetails.badgeColor}`}>
-              {roleDetails.name} View
+            <span className="text-[10px] px-2 py-0.5 rounded bg-blue-600/60 font-bold uppercase">
+              {activeRoleName || "User"} View
             </span>
           </div>
           <p className="text-xs text-slate-300 mt-0.5">
-            {roleDetails.description}
+            Permission-driven workspace for your assigned role.
           </p>
         </div>
       </div>
 
-      {/* Render Active Role Dashboard */}
-      {renderDashboard()}
+      {/* Render Role Dashboard */}
+      <Dashboard />
     </div>
   );
 }

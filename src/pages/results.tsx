@@ -14,6 +14,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { StatusChip } from "@/components/enterprise/status-chip";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 import { getAcademicSessions } from "@/lib/api/academic-sessions.api";
 import { getExams } from "@/lib/api/exams.api";
@@ -416,9 +417,11 @@ export default function ResultsPage() {
               <p className="text-xs text-muted-foreground mt-1">Define grade boundaries for percentage-based grading</p>
             </div>
           </div>
+          <PermissionGate permission="grades.create">
           <Button size="sm" onClick={openCreateGrade} className="bg-blue-600 hover:bg-blue-700 text-xs">
             + Add Grade
           </Button>
+        </PermissionGate>
         </div>
         <Card>
           <CardContent className="p-0">
@@ -446,8 +449,12 @@ export default function ResultsPage() {
                       <TableCell>{Number(g.maxPercent)}%</TableCell>
                       <TableCell>{g.gradePoint ? Number(g.gradePoint) : "-"}</TableCell>
                       <TableCell className="text-right space-x-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEditGrade(g)} className="h-8 w-8 p-0">Edit</Button>
-                        <Button variant="ghost" size="sm" onClick={() => { setItemToDelete({ id: g.id, name: g.gradeName }); setDeleteConfirmOpen(true); }} className="h-8 w-8 p-0 text-rose-600">Delete</Button>
+                        <PermissionGate permission="grades.update">
+                          <Button variant="ghost" size="sm" onClick={() => openEditGrade(g)} className="h-8 w-8 p-0">Edit</Button>
+                        </PermissionGate>
+                        <PermissionGate permission="grades.delete">
+                          <Button variant="ghost" size="sm" onClick={() => { setItemToDelete({ id: g.id, name: g.gradeName }); setDeleteConfirmOpen(true); }} className="h-8 w-8 p-0 text-rose-600">Delete</Button>
+                        </PermissionGate>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -512,10 +519,12 @@ export default function ResultsPage() {
           <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Results</h1>
           <p className="text-xs text-muted-foreground mt-1">View and manage student examination results</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setShowGrades(true)} className="text-xs">
-          <Award className="h-3 w-3 mr-1" />
-          Grading Scale
-        </Button>
+        <PermissionGate permission="grades.read">
+          <Button variant="outline" size="sm" onClick={() => setShowGrades(true)} className="text-xs">
+            <Award className="h-3 w-3 mr-1" />
+            Grading Scale
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* ── Cascade Filters ────────────────────────────────── */}
@@ -583,49 +592,55 @@ export default function ResultsPage() {
             <span className="font-medium">{selectedClassName} • {selectedSectionName}</span>
           </div>
           <div className="flex items-center gap-2">
-            {stats.generated > 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setRevertConfirmOpen(true)}
-                disabled={reverting}
-                className="text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20"
-              >
-                {reverting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RotateCcw className="h-3.5 w-3.5 mr-1" />}
-                Revert Results ({stats.generated})
-              </Button>
-            )}
-            {stats.generated === 0 && allMarks.length > 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setDeleteMarksConfirmOpen(true)}
-                disabled={deletingMarks}
-                className="text-xs border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
-              >
-                {deletingMarks ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
-                Delete All Marks
-              </Button>
-            )}
-            {stats.pending > 0 ? (
-              <Button
-                size="sm"
-                onClick={() => setGenerateConfirmOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-xs"
-              >
-                <Award className="h-3.5 w-3.5 mr-1" />
-                Generate Results ({stats.pending})
-              </Button>
-            ) : stats.hasAnyMarks && stats.generated > 0 ? (
-              <div className="flex items-center gap-2 text-xs bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md px-3 py-2">
-                <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                <span className="font-medium text-green-700 dark:text-green-300">All results generated</span>
-              </div>
-            ) : !stats.hasAnyMarks && students.length > 0 ? (
-              <div className="text-xs text-amber-600 dark:text-amber-400">
-                Enter marks first to generate results
-              </div>
-            ) : null}
+            <PermissionGate permission="exam-results.delete">
+              {stats.generated > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setRevertConfirmOpen(true)}
+                  disabled={reverting}
+                  className="text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                >
+                  {reverting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RotateCcw className="h-3.5 w-3.5 mr-1" />}
+                  Revert Results ({stats.generated})
+                </Button>
+              )}
+            </PermissionGate>
+            <PermissionGate permission="marks.delete">
+              {stats.generated === 0 && allMarks.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setDeleteMarksConfirmOpen(true)}
+                  disabled={deletingMarks}
+                  className="text-xs border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+                >
+                  {deletingMarks ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
+                  Delete All Marks
+                </Button>
+              )}
+            </PermissionGate>
+            <PermissionGate permission="exam-results.create">
+              {stats.pending > 0 ? (
+                <Button
+                  size="sm"
+                  onClick={() => setGenerateConfirmOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-xs"
+                >
+                  <Award className="h-3.5 w-3.5 mr-1" />
+                  Generate Results ({stats.pending})
+                </Button>
+              ) : stats.hasAnyMarks && stats.generated > 0 ? (
+                <div className="flex items-center gap-2 text-xs bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md px-3 py-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                  <span className="font-medium text-green-700 dark:text-green-300">All results generated</span>
+                </div>
+              ) : !stats.hasAnyMarks && students.length > 0 ? (
+                <div className="text-xs text-amber-600 dark:text-amber-400">
+                  Enter marks first to generate results
+                </div>
+              ) : null}
+            </PermissionGate>
           </div>
         </div>
       )}

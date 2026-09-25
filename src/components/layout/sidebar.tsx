@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useRole, NAV_GROUPS, MODULE_ROUTES } from "@/lib/permissions";
+import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import {
@@ -36,6 +37,12 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  ShieldCheck,
+  BriefcaseBusiness,
+  UserRound,
+  BookOpenCheck,
+  Layers,
+  Tags,
   GraduationCap as SchoolLogo,
 } from "lucide-react";
 
@@ -69,16 +76,31 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Settings,
   ClipboardCheck,
   Wallet,
+  ShieldCheck,
+  BriefcaseBusiness,
+  UserRound,
+  BookOpenCheck,
+  Layers,
+  Tags,
 };
 
 export function Sidebar() {
   const location = useLocation();
   const pathname = location.pathname;
-  const { hasPermission, roleDetails } = useRole();
+  const { hasPermission, hasAnyPermission, activeRoleName } = useRole();
+  const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
 
-  const visibleRoutes = MODULE_ROUTES.filter((m) => hasPermission(m.href));
+  const visibleRoutes = MODULE_ROUTES.filter((m) => {
+    const noRestriction =
+      !m.permission && (!m.anyPermission || m.anyPermission.length === 0);
+    return (
+      noRestriction ||
+      (m.permission && hasPermission(m.permission)) ||
+      (m.anyPermission && m.anyPermission.length > 0 && hasAnyPermission(...m.anyPermission))
+    );
+  });
   const standaloneRoutes = visibleRoutes.filter((r) => !r.group);
   const groupedRoutes = visibleRoutes.filter((r) => r.group);
 
@@ -253,14 +275,17 @@ export function Sidebar() {
 
       {/* Sidebar Footer User Info */}
       <div className="p-3 border-t border-slate-800 bg-slate-950/50 flex items-center space-x-3">
-        <Avatar fallback={roleDetails.name.substring(0, 2).toUpperCase()} size="sm" />
+        <Avatar
+          fallback={(activeRoleName || "U").substring(0, 2).toUpperCase()}
+          size="sm"
+        />
         {!collapsed && (
           <div className="flex flex-col overflow-hidden">
             <span className="text-xs font-semibold text-white truncate">
-              {roleDetails.name} User
+              {user?.username ?? activeRoleName} User
             </span>
             <span className="text-[10px] text-blue-400 font-medium truncate">
-              {roleDetails.id}
+              {activeRoleName}
             </span>
           </div>
         )}

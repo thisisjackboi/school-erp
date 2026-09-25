@@ -12,6 +12,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { StatusChip } from "@/components/enterprise/status-chip";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth/auth-context";
+import { PermissionGate } from "@/components/auth/permission-gate";
+import { formatDisplayDate, toDateInputValue } from "@/lib/dates";
 
 import { getExams } from "@/lib/api/exams.api";
 import { getExamSchedules } from "@/lib/api/exam-schedules.api";
@@ -68,27 +70,11 @@ interface StudentWithEnrollment {
 }
 
 function safeDateStr(val: unknown): string {
-  if (!val) return "N/A";
-  if (typeof val === "string") {
-    const d = new Date(val);
-    return isNaN(d.getTime()) ? "N/A" : d.toLocaleDateString();
-  }
-  if (val instanceof Date) {
-    return isNaN(val.getTime()) ? "N/A" : val.toLocaleDateString();
-  }
-  return "N/A";
+  return formatDisplayDate(val);
 }
 
 function safeDateInput(val: unknown): string {
-  if (!val) return "";
-  if (typeof val === "string") {
-    const d = new Date(val);
-    return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
-  }
-  if (val instanceof Date) {
-    return isNaN(val.getTime()) ? "" : val.toISOString().split("T")[0];
-  }
-  return "";
+  return toDateInputValue(val);
 }
 
 export default function MarksPage() {
@@ -495,12 +481,22 @@ export default function MarksPage() {
           <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Marks & Results</h1>
           <p className="text-xs text-muted-foreground">Enter student marks, generate exam results, and manage grading scale.</p>
         </div>
-        <Button
-          onClick={() => (activeTab === "marks" ? openBulkEntry() : activeTab === "results" ? openGenerateResult() : openCreateGrade())}
-          className="bg-blue-600 hover:bg-blue-700 text-xs"
+        <PermissionGate
+          permission={
+            activeTab === "marks"
+              ? "marks.create"
+              : activeTab === "results"
+                ? "exam-results.create"
+                : "grades.create"
+          }
         >
-          <Plus className="mr-1.5 h-3.5 w-3.5" /> {activeTab === "marks" ? "Enter Marks" : activeTab === "results" ? "Generate Result" : "Add Grade"}
-        </Button>
+          <Button
+            onClick={() => (activeTab === "marks" ? openBulkEntry() : activeTab === "results" ? openGenerateResult() : openCreateGrade())}
+            className="bg-blue-600 hover:bg-blue-700 text-xs"
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> {activeTab === "marks" ? "Enter Marks" : activeTab === "results" ? "Generate Result" : "Add Grade"}
+          </Button>
+        </PermissionGate>
       </div>
 
       {loading ? (
@@ -522,9 +518,11 @@ export default function MarksPage() {
               <CardHeader className="space-y-4 pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-bold">Student Marks</CardTitle>
-                  <Button onClick={openBulkEntry} size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs">
-                    <Plus className="mr-1 h-3.5 w-3.5" /> Enter Marks
-                  </Button>
+                  <PermissionGate permission="marks.create">
+                    <Button onClick={openBulkEntry} size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs">
+                      <Plus className="mr-1 h-3.5 w-3.5" /> Enter Marks
+                    </Button>
+                  </PermissionGate>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <select value={marksFilterExam} onChange={(e) => setMarksFilterExam(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-xs">
@@ -607,9 +605,11 @@ export default function MarksPage() {
                                           <Lock className="h-4 w-4" />
                                         </Button>
                                       ) : (
-                                        <Button variant="ghost" size="sm" onClick={() => promptDelete("mark", m.id, "mark")} className="h-8 w-8 p-0 text-rose-600">
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        <PermissionGate permission="marks.delete">
+                                          <Button variant="ghost" size="sm" onClick={() => promptDelete("mark", m.id, "mark")} className="h-8 w-8 p-0 text-rose-600">
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </PermissionGate>
                                       )}
                                     </TableCell>
                                   </TableRow>
@@ -632,9 +632,11 @@ export default function MarksPage() {
               <CardHeader className="space-y-4 pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-bold">Exam Results</CardTitle>
-                  <Button onClick={openGenerateResult} size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs">
-                    <Plus className="mr-1 h-3.5 w-3.5" /> Generate Result
-                  </Button>
+                  <PermissionGate permission="exam-results.create">
+                    <Button onClick={openGenerateResult} size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs">
+                      <Plus className="mr-1 h-3.5 w-3.5" /> Generate Result
+                    </Button>
+                  </PermissionGate>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <select value={resultsFilterExam} onChange={(e) => setResultsFilterExam(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-xs">
@@ -683,9 +685,11 @@ export default function MarksPage() {
                           <TableCell>{r.rankInSection || "-"}</TableCell>
                           <TableCell><StatusChip status={r.resultStatus.toLowerCase()} /></TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" onClick={() => promptDelete("result", r.id, "result")} className="h-8 w-8 p-0 text-rose-600">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <PermissionGate permission="exam-results.delete">
+                              <Button variant="ghost" size="sm" onClick={() => promptDelete("result", r.id, "result")} className="h-8 w-8 p-0 text-rose-600">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </PermissionGate>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -701,9 +705,11 @@ export default function MarksPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-4">
                 <CardTitle className="text-base font-bold">Grading Scale</CardTitle>
-                <Button onClick={openCreateGrade} size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs">
-                  <Plus className="mr-1 h-3.5 w-3.5" /> Add Grade
-                </Button>
+                <PermissionGate permission="grades.create">
+                  <Button onClick={openCreateGrade} size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs">
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Add Grade
+                  </Button>
+                </PermissionGate>
               </CardHeader>
               <CardContent className="p-0">
                 {grades.length === 0 ? (
@@ -727,12 +733,16 @@ export default function MarksPage() {
                           <TableCell>{g.maxPercent}%</TableCell>
                           <TableCell className="text-muted-foreground">{g.gradePoint != null ? g.gradePoint : "-"}</TableCell>
                           <TableCell className="text-right space-x-1">
-                            <Button variant="ghost" size="sm" onClick={() => openEditGrade(g)} className="h-8 w-8 p-0">
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => promptDelete("grade", g.id, g.gradeName)} className="h-8 w-8 p-0 text-rose-600">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <PermissionGate permission="grades.update">
+                              <Button variant="ghost" size="sm" onClick={() => openEditGrade(g)} className="h-8 w-8 p-0">
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </PermissionGate>
+                            <PermissionGate permission="grades.delete">
+                              <Button variant="ghost" size="sm" onClick={() => promptDelete("grade", g.id, g.gradeName)} className="h-8 w-8 p-0 text-rose-600">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </PermissionGate>
                           </TableCell>
                         </TableRow>
                       ))}
