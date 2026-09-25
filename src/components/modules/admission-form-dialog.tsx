@@ -17,7 +17,11 @@ import { UserPlus, ArrowRight, ArrowLeft, Check } from "lucide-react";
 
 import { useAuth } from "@/lib/auth/auth-context";
 import { toDateInputValue } from "@/lib/dates";
-import { createAdmission, updateAdmission, getNextApplicationNumber } from "@/lib/api/admissions.api";
+import {
+  createAdmission,
+  updateAdmission,
+  getNextApplicationNumber,
+} from "@/lib/api/admissions.api";
 import { getClasses } from "@/lib/api/classes.api";
 import { getAcademicSessions } from "@/lib/api/academic-sessions.api";
 
@@ -166,7 +170,8 @@ export function AdmissionFormDialog({
           } else if (sessionsData.length > 0) {
             setFormData((current) => ({
               ...current,
-              academicSessionId: current.academicSessionId || sessionsData[0].id,
+              academicSessionId:
+                current.academicSessionId || sessionsData[0].id,
             }));
           }
         }
@@ -239,10 +244,7 @@ export function AdmissionFormDialog({
         return false;
       }
 
-      const firstNameError = validateName(
-        formData.firstName,
-        "First name",
-      );
+      const firstNameError = validateName(formData.firstName, "First name");
       if (firstNameError) {
         setError(firstNameError);
         return false;
@@ -426,11 +428,17 @@ export function AdmissionFormDialog({
       <DialogHeader>
         <DialogTitle className="flex items-center space-x-2">
           <UserPlus className="h-5 w-5 text-blue-600" />
-          <span>{isEditMode ? "Edit Admission Application" : "New Student Admission Application"}</span>
+          <span>
+            {isEditMode
+              ? "Edit Admission Application"
+              : "New Student Admission Application"}
+          </span>
         </DialogTitle>
 
         <DialogDescription>
-          {isEditMode ? "Update the admission application details." : "Create a new admission application."}
+          {isEditMode
+            ? "Update the admission application details."
+            : "Create a new admission application."}
         </DialogDescription>
       </DialogHeader>
 
@@ -457,7 +465,11 @@ export function AdmissionFormDialog({
                   onChange={(event) =>
                     updateField("applicationNumber", event.target.value)
                   }
-                  className={!isEditMode ? "disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500" : ""}
+                  className={
+                    !isEditMode
+                      ? "disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500"
+                      : ""
+                  }
                 />
               </div>
 
@@ -709,7 +721,11 @@ export function AdmissionFormDialog({
               className="bg-blue-600 hover:bg-blue-700"
             >
               <Check className="mr-1 h-3.5 w-3.5" />
-              {isSaving ? "Saving..." : isEditMode ? "Update Admission" : "Submit Admission"}
+              {isSaving
+                ? "Saving..."
+                : isEditMode
+                  ? "Update Admission"
+                  : "Submit Admission"}
             </Button>
           )}
         </div>
