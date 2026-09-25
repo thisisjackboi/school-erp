@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Pencil, ShieldCheck, UserPlus, UserRound, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Pencil, Power, RotateCcw, ShieldCheck, UserPlus, UserRound, X } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,12 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { useAuth } from "@/lib/auth/auth-context";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import {
+  checkUsernameAvailability,
   createUser,
+  deleteUser,
   getUserRoles,
   getUsers,
+  restoreUser,
   updateUserRoles,
 } from "@/lib/api/users.api";
 import { getRoles } from "@/lib/api/roles.api";
@@ -32,7 +35,7 @@ import {
 } from "@/lib/input-restrictions";
 
 export default function UsersPage() {
-  const { accessToken } = useAuth();
+  const { accessToken, user: authUser } = useAuth();
 
   const [users, setUsers] = useState<RbacUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -48,6 +51,13 @@ export default function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
+  const [activeTab, setActiveTab] = useState<
+    "all" | "SYSTEM" | "STUDENT" | "EMPLOYEE" | "GUARDIAN" | "deactivated"
+  >("all");
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+
   const [selectedUser, setSelectedUser] = useState<RbacUser | null>(null);
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
 
@@ -58,6 +68,17 @@ export default function UsersPage() {
     password: "",
   });
 
+  const [usernameStatus, setUsernameStatus] = useState<
+    "idle" | "checking" | "available" | "taken"
+  >("idle");
+  const usernameCheckSeq = useRef(0);
+  const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const [phoneError, setPhoneError] = useState("");
+  const [emailError, setEmailError] = useState("");
+
   const loadData = async () => {
     if (!accessToken) {
       setError("Unauthorized");
@@ -65,12 +86,19 @@ export default function UsersPage() {
       return;
     }
 
+    const userType =
+      activeTab === "all" || activeTab === "deactivated"
+        ? undefined
+        : activeTab;
+    const status: "active" | "deactivated" =
+      activeTab === "deactivated" ? "deactivated" : "active";
+
     try {
       setLoading(true);
       setError("");
 
       const [usersResponse, rolesResponse] = await Promise.all([
-        getUsers(1, 100, undefined, accessToken),
+        getUsers(1, 100, undefined, userType, status, accessToken),
         getRoles(1, 100, accessToken),
       ]);
 
@@ -85,7 +113,108 @@ export default function UsersPage() {
 
   useEffect(() => {
     void loadData();
-  }, [accessToken]);
+  }, [accessToken, activeTab]);
+
+  const handleDeactivate = async (user: RbacUser) => {
+    if (!accessToken) {
+      setError("Unauthorized");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Deactivate "${user.username}"? Their login will be blocked immediately. You can reactivate them later from the Deactivated tab.`,
+      )
+    ) {
+      return;
+    }
+
+    setDeletingId(user.id);
+    setError("");
+
+    try {
+      await deleteUser(user.id, accessToken);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to deactivate user");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleRestore = async (user: RbacUser) => {
+    if (!accessToken) {
+      setError("Unauthorized");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Reactivate "${user.username}"? Their login will work again.`,
+      )
+    ) {
+      return;
+    }
+
+    setRestoringId(user.id);
+    setError("");
+
+    try {
+      await restoreUser(user.id, accessToken);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reactivate user");
+    } finally {
+      setRestoringId(null);
+    }
+  };
+
+  useEffect(() => {
+    const value = form.username.trim();
+
+    if (usernameCheckTimer.current) {
+      clearTimeout(usernameCheckTimer.current);
+      usernameCheckTimer.current = null;
+    }
+
+    if (value.length < 3) {
+      usernameCheckSeq.current += 1;
+      setUsernameStatus("idle");
+      return;
+    }
+
+    setUsernameStatus("checking");
+
+    const seq = usernameCheckSeq.current + 1;
+    usernameCheckSeq.current = seq;
+
+    usernameCheckTimer.current = setTimeout(async () => {
+      try {
+        const result = await checkUsernameAvailability(value, accessToken);
+
+        if (usernameCheckSeq.current !== seq) {
+          return;
+        }
+
+        setUsernameStatus(result.available ? "available" : "taken");
+      } catch {
+        if (usernameCheckSeq.current !== seq) {
+          return;
+        }
+
+        setUsernameStatus("idle");
+      }
+    }, 400);
+  }, [form.username, accessToken]);
+
+  useEffect(() => {
+    return () => {
+      if (usernameCheckTimer.current) {
+        clearTimeout(usernameCheckTimer.current);
+      }
+      usernameCheckSeq.current += 1;
+    };
+  }, []);
 
   const filteredUsers = users.filter((user) => {
     const value = search.trim().toLowerCase();
@@ -112,6 +241,9 @@ export default function UsersPage() {
 
     setSelectedRoleIds([]);
     setError("");
+    setUsernameStatus("idle");
+    setPhoneError("");
+    setEmailError("");
     setCreateOpen(true);
   };
 
@@ -131,6 +263,9 @@ export default function UsersPage() {
 
     setSelectedRoleIds([]);
     setError("");
+    setUsernameStatus("idle");
+    setPhoneError("");
+    setEmailError("");
   };
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -143,6 +278,11 @@ export default function UsersPage() {
 
     if (!form.username.trim()) {
       setError("Username is required");
+      return;
+    }
+
+    if (usernameStatus === "taken") {
+      setError("Username is already taken");
       return;
     }
 
@@ -167,13 +307,20 @@ export default function UsersPage() {
       return;
     }
 
-    if (form.email.trim() && !validateEmail(form.email)) {
-      setError(validateEmail(form.email));
-      return;
-    }
+    const emailErrorMsg = firstError(
+      validateRequired(form.email, "Email"),
+      validateEmail(form.email),
+    );
+    setEmailError(emailErrorMsg);
 
-    if (form.phone.trim() && !validatePhone(form.phone)) {
-      setError(validatePhone(form.phone));
+    const phoneErrorMsg = firstError(
+      validateRequired(form.phone, "Phone number"),
+      validatePhone(form.phone),
+    );
+    setPhoneError(phoneErrorMsg);
+
+    if (emailErrorMsg || phoneErrorMsg) {
+      setError(emailErrorMsg || phoneErrorMsg);
       return;
     }
 
@@ -316,6 +463,32 @@ export default function UsersPage() {
               className="max-w-xs text-xs"
             />
           </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {(
+              [
+                { value: "all", label: "All" },
+                { value: "SYSTEM", label: "System" },
+                { value: "STUDENT", label: "Student" },
+                { value: "EMPLOYEE", label: "Employee" },
+                { value: "GUARDIAN", label: "Guardian" },
+                { value: "deactivated", label: "Deactivated" },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setActiveTab(tab.value)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  activeTab === tab.value
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </CardHeader>
 
         <CardContent>
@@ -355,6 +528,13 @@ export default function UsersPage() {
                         user={user}
                         accessToken={accessToken}
                         onEdit={openEdit}
+                        onDeactivate={handleDeactivate}
+                        onRestore={handleRestore}
+                        isDeactivated={activeTab === "deactivated"}
+                        isProcessing={
+                          deletingId === user.id || restoringId === user.id
+                        }
+                        isSelf={user.id === authUser?.id}
                       />
                     ))
                   )}
@@ -397,7 +577,7 @@ export default function UsersPage() {
                 </div>
               )}
 
-              <form onSubmit={handleCreate} className="space-y-4">
+              <form onSubmit={handleCreate} noValidate className="space-y-4">
                 <div>
                   <label className="mb-1.5 block text-xs font-medium">
                     Username *
@@ -419,49 +599,93 @@ export default function UsersPage() {
                     disabled={creating}
                     className="text-xs"
                   />
+
+                  {usernameStatus !== "idle" && (
+                    <div
+                      className={`mt-1 text-xs ${
+                        usernameStatus === "taken"
+                          ? "text-red-600"
+                          : usernameStatus === "available"
+                            ? "text-green-600"
+                            : "text-muted-foreground"
+                      }`}
+                    >
+                      {usernameStatus === "taken"
+                        ? "Username is already taken"
+                        : usernameStatus === "available"
+                          ? "Username is available"
+                          : "Checking availability..."}
+                    </div>
+                  )}
                 </div>
 
                 <div>
                   <label className="mb-1.5 block text-xs font-medium">
-                    Email
+                    Email *
                   </label>
 
                   <Input
                     type="email"
                     value={form.email}
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setForm((current) => ({
                         ...current,
                         email: trimMax(
                           event.target.value,
                           LIMITS.EMAIL_MAX,
                         ),
-                      }))
+                      }));
+                      setEmailError("");
+                    }}
+                    onBlur={() =>
+                      setEmailError(
+                        form.email.trim()
+                          ? validateEmail(form.email)
+                          : "Email is required.",
+                      )
                     }
                     placeholder="Enter email"
                     maxLength={LIMITS.EMAIL_MAX}
                     disabled={creating}
+                    invalid={!!emailError}
                     className="text-xs"
                   />
+
+                  {emailError && (
+                    <p className="mt-1 text-xs text-red-600">{emailError}</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="mb-1.5 block text-xs font-medium">
-                    Phone
+                    Phone *
                   </label>
 
                   <PhoneInput
                     value={form.phone}
-                    onChange={(value) =>
+                    onChange={(value) => {
                       setForm((current) => ({
                         ...current,
                         phone: value,
-                      }))
+                      }));
+                      setPhoneError("");
+                    }}
+                    onBlur={() =>
+                      setPhoneError(
+                        form.phone.trim()
+                          ? validatePhone(form.phone)
+                          : "Phone number is required.",
+                      )
                     }
                     placeholder="Enter phone"
+                    invalid={!!phoneError}
                     disabled={creating}
                     className="mt-0.5"
                   />
+
+                  {phoneError && (
+                    <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+                  )}
                 </div>
 
                 <div>
@@ -556,7 +780,11 @@ export default function UsersPage() {
 
                   <Button
                     type="submit"
-                    disabled={creating || roles.length === 0}
+                    disabled={
+                      creating ||
+                      roles.length === 0 ||
+                      usernameStatus === "taken"
+                    }
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     {creating ? "Creating..." : "Create User"}
@@ -670,10 +898,24 @@ export default function UsersPage() {
 interface UserTableRowProps {
   user: RbacUser;
   accessToken: string | null;
+  isDeactivated: boolean;
+  isProcessing: boolean;
+  isSelf: boolean;
   onEdit: (user: RbacUser) => void;
+  onDeactivate: (user: RbacUser) => void;
+  onRestore: (user: RbacUser) => void;
 }
 
-function UserTableRow({ user, accessToken, onEdit }: UserTableRowProps) {
+function UserTableRow({
+  user,
+  accessToken,
+  isDeactivated,
+  isProcessing,
+  isSelf,
+  onEdit,
+  onDeactivate,
+  onRestore,
+}: UserTableRowProps) {
   const [userRoles, setUserRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -732,6 +974,10 @@ function UserTableRow({ user, accessToken, onEdit }: UserTableRowProps) {
           <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-medium text-red-700">
             Locked
           </span>
+        ) : isDeactivated ? (
+          <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-700">
+            Deactivated
+          </span>
         ) : user.isActive ? (
           <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-medium text-emerald-700">
             Active
@@ -763,17 +1009,53 @@ function UserTableRow({ user, accessToken, onEdit }: UserTableRowProps) {
       </td>
 
       <td className="px-4 py-3 text-right">
-        <PermissionGate permission="users.update">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onEdit(user)}
-          >
-            <Pencil className="mr-2 h-3.5 w-3.5" />
-            Edit
-          </Button>
-        </PermissionGate>
+        {isDeactivated ? (
+          <PermissionGate permission="users.update">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onRestore(user)}
+              disabled={isProcessing}
+            >
+              <RotateCcw className="mr-2 h-3.5 w-3.5" />
+              {isProcessing ? "Restoring..." : "Reactivate"}
+            </Button>
+          </PermissionGate>
+        ) : (
+          <div className="flex items-center justify-end gap-2">
+            <PermissionGate permission="users.update">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(user)}
+                disabled={isProcessing}
+              >
+                <Pencil className="mr-2 h-3.5 w-3.5" />
+                Edit
+              </Button>
+            </PermissionGate>
+
+            <PermissionGate permission="users.delete">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onDeactivate(user)}
+                disabled={isProcessing || isSelf}
+                title={
+                  isSelf
+                    ? "You cannot deactivate your own account"
+                    : undefined
+                }
+              >
+                <Power className="mr-2 h-3.5 w-3.5" />
+                {isProcessing ? "Deactivating..." : "Deactivate"}
+              </Button>
+            </PermissionGate>
+          </div>
+        )}
       </td>
     </tr>
   );

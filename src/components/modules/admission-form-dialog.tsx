@@ -59,6 +59,7 @@ export function AdmissionFormDialog({
   const [isLoadingOptions, setIsLoadingOptions] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState("");
 
   const [formData, setFormData] = useState({
     applicationNumber: "",
@@ -134,6 +135,7 @@ export function AdmissionFormDialog({
         guardianPhone: "",
       });
     }
+    setPhoneError("");
     setCurrentStep(0);
 
     const loadOptions = async () => {
@@ -210,6 +212,10 @@ export function AdmissionFormDialog({
       ...current,
       [field]: next,
     }));
+
+    if (field === "guardianPhone") {
+      setPhoneError("");
+    }
   };
 
   const validateCurrentStep = () => {
@@ -286,14 +292,18 @@ export function AdmissionFormDialog({
 
       if (!formData.guardianPhone.trim()) {
         setError("Guardian phone is required.");
+        setPhoneError("Guardian phone is required.");
         return false;
       }
 
       const phoneError = validatePhone(formData.guardianPhone);
       if (phoneError) {
         setError(phoneError);
+        setPhoneError(phoneError);
         return false;
       }
+
+      setPhoneError("");
     }
 
     return true;
@@ -603,8 +613,20 @@ export function AdmissionFormDialog({
                 <PhoneInput
                   value={formData.guardianPhone}
                   placeholder="9876543210"
+                  invalid={!!phoneError}
                   onChange={(value) => updateField("guardianPhone", value)}
+                  onBlur={() =>
+                    setPhoneError(
+                      formData.guardianPhone.trim()
+                        ? validatePhone(formData.guardianPhone)
+                        : "",
+                    )
+                  }
                 />
+
+                {phoneError && (
+                  <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+                )}
               </div>
             </div>
           )}

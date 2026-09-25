@@ -87,6 +87,8 @@ export default function EmployeesPage() {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [form, setForm] = useState<EmployeeForm>(initialForm);
   const [error, setError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [userPhoneError, setUserPhoneError] = useState("");
 
   useEffect(() => {
     if (accessToken) {
@@ -124,6 +126,8 @@ export default function EmployeesPage() {
       dateOfJoining: new Date().toISOString().split("T")[0],
     });
     setError("");
+    setPhoneError("");
+    setUserPhoneError("");
     setShowModal(true);
   }
 
@@ -152,6 +156,8 @@ export default function EmployeesPage() {
       password: "",
     });
     setError("");
+    setPhoneError("");
+    setUserPhoneError("");
     setShowModal(true);
   }
 
@@ -164,9 +170,17 @@ export default function EmployeesPage() {
     setEditingEmployee(null);
     setForm(initialForm);
     setError("");
+    setPhoneError("");
+    setUserPhoneError("");
   }
 
   function handlePhoneChange(name: "phone" | "userPhone", value: string) {
+    if (name === "phone") {
+      setPhoneError("");
+    } else {
+      setUserPhoneError("");
+    }
+
     handleChange({
       target: { name, value },
     } as React.ChangeEvent<HTMLInputElement>);
@@ -224,6 +238,12 @@ export default function EmployeesPage() {
       return;
     }
 
+    const phoneErrorMsg = firstError(
+      validateRequired(form.phone, "Phone number"),
+      validatePhone(form.phone, "Phone number"),
+    );
+    setPhoneError(phoneErrorMsg);
+
     const validationError = firstError(
       validateRequired(form.employeeCode, "Employee code"),
       validateMaxLength(
@@ -234,8 +254,7 @@ export default function EmployeesPage() {
       validateRequired(form.firstName, "First name"),
       validateName(form.firstName, "First name"),
       validateName(form.lastName, "Last name"),
-      validateRequired(form.phone, "Phone number"),
-      validatePhone(form.phone, "Phone number"),
+      phoneErrorMsg,
       validateMaxLength(form.address, "Address", LIMITS.ADDRESS_MAX),
       validateMaxLength(form.email, "Email", LIMITS.EMAIL_MAX),
     );
@@ -266,9 +285,15 @@ export default function EmployeesPage() {
         return;
       }
 
-      if (form.userPhone.trim() && !validatePhone(form.userPhone)) {
-        setError(validatePhone(form.userPhone));
-        return;
+      if (form.userPhone.trim()) {
+        const userPhoneErrorMsg = validatePhone(form.userPhone);
+        setUserPhoneError(userPhoneErrorMsg);
+        if (userPhoneErrorMsg) {
+          setError(userPhoneErrorMsg);
+          return;
+        }
+      } else {
+        setUserPhoneError("");
       }
     }
 
@@ -622,8 +647,21 @@ export default function EmployeesPage() {
                   <PhoneInput
                     value={form.phone}
                     onChange={(value) => handlePhoneChange("phone", value)}
+                    onBlur={() =>
+                      setPhoneError(
+                        form.phone.trim()
+                          ? validatePhone(form.phone, "Phone number")
+                          : "",
+                      )
+                    }
+                    invalid={!!phoneError}
                     className="mt-1"
                   />
+                  {phoneError && (
+                    <span className="mt-1 block text-xs text-red-600">
+                      {phoneError}
+                    </span>
+                  )}
                 </label>
 
                 <label className="block">
@@ -722,8 +760,21 @@ export default function EmployeesPage() {
                             onChange={(value) =>
                               handlePhoneChange("userPhone", value)
                             }
+                            onBlur={() =>
+                              setUserPhoneError(
+                                form.userPhone.trim()
+                                  ? validatePhone(form.userPhone)
+                                  : "",
+                              )
+                            }
+                            invalid={!!userPhoneError}
                             className="mt-1"
                           />
+                          {userPhoneError && (
+                            <span className="mt-1 block text-xs text-red-600">
+                              {userPhoneError}
+                            </span>
+                          )}
                         </label>
 
                         <label className="block">

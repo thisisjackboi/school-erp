@@ -118,6 +118,7 @@ interface PhoneInputProps {
   invalid?: boolean;
   placeholder?: string;
   id?: string;
+  onBlur?: React.FocusEventHandler<HTMLInputElement>;
   className?: string;
 }
 
@@ -130,6 +131,7 @@ export const PhoneInput = React.forwardRef<HTMLDivElement, PhoneInputProps>(
       invalid = false,
       placeholder = "Enter phone number",
       id,
+      onBlur,
       className,
     },
     ref
@@ -240,6 +242,7 @@ export const PhoneInput = React.forwardRef<HTMLDivElement, PhoneInputProps>(
           aria-invalid={invalid || undefined}
           placeholder={placeholder}
           onChange={(event) => changeNational(event.target.value)}
+          onBlur={onBlur}
           className={cn(
             PHONE_INPUT_CLASSES,
             "min-w-0",

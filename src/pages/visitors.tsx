@@ -28,15 +28,19 @@ export default function VisitorsPage() {
   const [passes, setPasses] = useState(DUMMY_VISITOR_PASSES);
   const [visitorName, setVisitorName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [purpose, setPurpose] = useState("");
   const [personToMeet, setPersonToMeet] = useState("");
 
   const handleIssuePass = () => {
+    const phoneErrorMsg = phone.trim() ? validatePhone(phone) : "";
+    setPhoneError(phoneErrorMsg);
+
     const error = firstError(
       validateRequired(visitorName, "Visitor name"),
       validateName(visitorName, "Visitor name"),
       validateMaxLength(visitorName, "Visitor name", LIMITS.NAME_MAX),
-      ...(phone.trim() ? [validatePhone(phone)] : []),
+      phoneErrorMsg,
       validateMaxLength(purpose, "Purpose", LIMITS.TEXT_MAX),
       validateMaxLength(personToMeet, "Person to meet", LIMITS.NAME_MAX),
     );
@@ -102,9 +106,19 @@ export default function VisitorsPage() {
               <label className="font-semibold block mb-1">Phone Number</label>
               <PhoneInput
                 value={phone}
-                onChange={(value) => setPhone(value)}
+                onChange={(value) => {
+                  setPhone(value);
+                  setPhoneError("");
+                }}
+                onBlur={() =>
+                  setPhoneError(phone.trim() ? validatePhone(phone) : "")
+                }
+                invalid={!!phoneError}
                 placeholder="e.g. 9876543210"
               />
+              {phoneError && (
+                <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+              )}
             </div>
             <div>
               <label className="font-semibold block mb-1">Person / Dept to Meet</label>

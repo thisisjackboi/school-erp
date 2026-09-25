@@ -15,6 +15,7 @@ import {
   onlyCode,
   trimMax,
   validateMaxLength,
+  validatePhone,
   validateRequired,
 } from "@/lib/input-restrictions";
 
@@ -24,15 +25,19 @@ export default function SettingsPage() {
   const [schoolName, setSchoolName] = useState("PrismaEd+ Senior Secondary School");
   const [schoolCode, setSchoolCode] = useState("CBSE-54109");
   const [phone, setPhone] = useState("+911126123456");
+  const [phoneError, setPhoneError] = useState("");
   const [address, setAddress] = useState("Sector 4, Vasant Vihar, New Delhi - 110057");
 
   const handleSave = () => {
+    const phoneErrorMsg = validatePhone(phone, "Official phone");
+    setPhoneError(phoneErrorMsg);
+
     const error = firstError(
       validateRequired(schoolName, "Institution name"),
       validateMaxLength(schoolName, "Institution name", LIMITS.TITLE_MAX),
       validateRequired(schoolCode, "Affiliation code"),
       validateMaxLength(schoolCode, "Affiliation code", LIMITS.CODE_MAX),
-      validateMaxLength(phone, "Official phone", LIMITS.PHONE_INTL_MAX),
+      phoneErrorMsg,
       validateRequired(address, "Campus address"),
       validateMaxLength(address, "Campus address", LIMITS.ADDRESS_MAX),
     );
@@ -75,7 +80,24 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="font-semibold block mb-1">Official Phone</label>
-                <PhoneInput value={phone} onChange={(value) => setPhone(value)} />
+                <PhoneInput
+                  value={phone}
+                  onChange={(value) => {
+                    setPhone(value);
+                    setPhoneError("");
+                  }}
+                  onBlur={() =>
+                    setPhoneError(
+                      phone.trim()
+                        ? validatePhone(phone, "Official phone")
+                        : "",
+                    )
+                  }
+                  invalid={!!phoneError}
+                />
+                {phoneError && (
+                  <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+                )}
               </div>
             </div>
             <div>
