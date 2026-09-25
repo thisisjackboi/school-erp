@@ -69,6 +69,16 @@
 @layer base {
   * {
     @apply border-border;
+    overflow-wrap: anywhere;
+  }
+  img,
+  svg,
+  video,
+  canvas,
+  iframe,
+  embed,
+  object {
+    max-width: 100%;
   }
   body {
     @apply bg-background text-foreground font-sans antialiased selection:bg-blue-100 selection:text-blue-900 dark:selection:bg-blue-900 dark:selection:text-blue-100;
