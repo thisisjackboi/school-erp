@@ -1,18 +1,7 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 
 import type { Section } from "../types/section";
-
-function getAuthHeaders(
-  accessToken?: string | null,
-) {
-  return {
-    ...(accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {}),
-  };
-}
 
 export interface CreateSectionPayload {
   classId: string;
@@ -33,74 +22,37 @@ export interface UpdateSectionPayload {
 export async function getSections(
   accessToken?: string | null,
 ): Promise<Section[]> {
-  const response = await fetch(
+  return apiData<Section[]>(
     `${API_BASE_URL}/sections`,
-    {
-      headers: getAuthHeaders(accessToken),
-    },
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch sections",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to fetch sections",
-    );
-  }
-
-  return result.data;
 }
 
 export async function getSection(
   id: string,
   accessToken?: string | null,
 ): Promise<Section> {
-  const response = await fetch(
+  return apiData<Section>(
     `${API_BASE_URL}/sections/${id}`,
-    {
-      headers: getAuthHeaders(accessToken),
-    },
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch section",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to fetch section",
-    );
-  }
-
-  return result.data;
 }
 
 export async function createSection(
   data: CreateSectionPayload,
   accessToken?: string | null,
 ): Promise<Section> {
-  const response = await fetch(
+  return apiData<Section>(
     `${API_BASE_URL}/sections`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(accessToken),
-      },
+      headers: jsonHeaders(accessToken),
       body: JSON.stringify(data),
     },
+    "Failed to create section",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to create section",
-    );
-  }
-
-  return result.data;
 }
 
 export async function updateSection(
@@ -108,26 +60,13 @@ export async function updateSection(
   data: UpdateSectionPayload,
   accessToken?: string | null,
 ): Promise<Section> {
-  const response = await fetch(
+  return apiData<Section>(
     `${API_BASE_URL}/sections/${id}`,
     {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(accessToken),
-      },
+      headers: jsonHeaders(accessToken),
       body: JSON.stringify(data),
     },
+    "Failed to update section",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to update section",
-    );
-  }
-
-  return result.data;
 }

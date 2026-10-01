@@ -1,11 +1,6 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 import type { Grade } from "../types/marks";
-
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-  };
-}
 
 export interface CreateGradePayload {
   gradeName: string;
@@ -24,47 +19,37 @@ export interface UpdateGradePayload {
 export async function getGrades(
   accessToken?: string | null
 ): Promise<Grade[]> {
-  const response = await fetch(`${API_BASE_URL}/grades`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch grades");
-  }
-  return result.data;
+  return apiData<Grade[]>(
+    `${API_BASE_URL}/grades`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch grades",
+  );
 }
 
 export async function getGrade(
   id: string,
   accessToken?: string | null
 ): Promise<Grade> {
-  const response = await fetch(`${API_BASE_URL}/grades/${id}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch grade");
-  }
-  return result.data;
+  return apiData<Grade>(
+    `${API_BASE_URL}/grades/${id}`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch grade",
+  );
 }
 
 export async function createGrade(
   data: CreateGradePayload,
   accessToken?: string | null
 ): Promise<Grade> {
-  const response = await fetch(`${API_BASE_URL}/grades`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Grade>(
+    `${API_BASE_URL}/grades`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to create grade");
-  }
-  return result.data;
+    "Failed to create grade",
+  );
 }
 
 export async function updateGrade(
@@ -72,31 +57,27 @@ export async function updateGrade(
   data: UpdateGradePayload,
   accessToken?: string | null
 ): Promise<Grade> {
-  const response = await fetch(`${API_BASE_URL}/grades/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Grade>(
+    `${API_BASE_URL}/grades/${id}`,
+    {
+      method: "PUT",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to update grade");
-  }
-  return result.data;
+    "Failed to update grade",
+  );
 }
 
 export async function deleteGrade(
   id: string,
   accessToken?: string | null
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/grades/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to delete grade");
-  }
+  await apiData<unknown>(
+    `${API_BASE_URL}/grades/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+    "Failed to delete grade",
+  );
 }

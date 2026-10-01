@@ -1,19 +1,10 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 import type {
   StudentAttendance,
   BulkStudentAttendancePayload,
   AttendanceType,
 } from "@/lib/types/student-attendance";
-
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {}),
-  };
-}
 
 export interface GetAttendanceFilters {
   studentEnrollmentId?: string;
@@ -47,37 +38,24 @@ export async function getStudentAttendance(
   const qs = params.toString();
   const url = `${API_BASE_URL}/student-attendance${qs ? `?${qs}` : ""}`;
 
-  const response = await fetch(url, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch student attendance");
-  }
-
-  return result.data;
+  return apiData<StudentAttendance[]>(
+    url,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch student attendance",
+  );
 }
 
 export async function bulkMarkStudentAttendance(
   payload: BulkStudentAttendancePayload,
   accessToken?: string | null,
 ): Promise<StudentAttendance[]> {
-  const response = await fetch(`${API_BASE_URL}/student-attendance/bulk`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<StudentAttendance[]>(
+    `${API_BASE_URL}/student-attendance/bulk`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to save student attendance");
-  }
-
-  return result.data;
+    "Failed to save student attendance",
+  );
 }

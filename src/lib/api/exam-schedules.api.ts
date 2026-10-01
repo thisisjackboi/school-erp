@@ -1,11 +1,6 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 import type { ExamSchedule } from "../types/exam";
-
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-  };
-}
 
 export interface GetExamSchedulesFilters {
   examId?: string;
@@ -45,47 +40,37 @@ export async function getExamSchedules(
   if (filters?.examDate) query.append("examDate", filters.examDate);
 
   const queryString = query.toString() ? `?${query.toString()}` : "";
-  const response = await fetch(`${API_BASE_URL}/exam-schedules${queryString}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch exam schedules");
-  }
-  return result.data;
+  return apiData<ExamSchedule[]>(
+    `${API_BASE_URL}/exam-schedules${queryString}`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch exam schedules",
+  );
 }
 
 export async function getExamSchedule(
   id: string,
   accessToken?: string | null
 ): Promise<ExamSchedule> {
-  const response = await fetch(`${API_BASE_URL}/exam-schedules/${id}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch exam schedule");
-  }
-  return result.data;
+  return apiData<ExamSchedule>(
+    `${API_BASE_URL}/exam-schedules/${id}`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch exam schedule",
+  );
 }
 
 export async function createExamSchedule(
   data: CreateExamSchedulePayload,
   accessToken?: string | null
 ): Promise<ExamSchedule> {
-  const response = await fetch(`${API_BASE_URL}/exam-schedules`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<ExamSchedule>(
+    `${API_BASE_URL}/exam-schedules`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to create exam schedule");
-  }
-  return result.data;
+    "Failed to create exam schedule",
+  );
 }
 
 export async function updateExamSchedule(
@@ -93,31 +78,27 @@ export async function updateExamSchedule(
   data: UpdateExamSchedulePayload,
   accessToken?: string | null
 ): Promise<ExamSchedule> {
-  const response = await fetch(`${API_BASE_URL}/exam-schedules/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<ExamSchedule>(
+    `${API_BASE_URL}/exam-schedules/${id}`,
+    {
+      method: "PUT",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to update exam schedule");
-  }
-  return result.data;
+    "Failed to update exam schedule",
+  );
 }
 
 export async function deleteExamSchedule(
   id: string,
   accessToken?: string | null
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/exam-schedules/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to delete exam schedule");
-  }
+  await apiData<unknown>(
+    `${API_BASE_URL}/exam-schedules/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+    "Failed to delete exam schedule",
+  );
 }

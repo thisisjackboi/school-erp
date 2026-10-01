@@ -1,47 +1,31 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 import type { FeeCategory } from "../fees-fm/types";
 
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-  };
-}
-
-function jsonHeaders(accessToken?: string | null) {
-  return {
-    "Content-Type": "application/json",
-    ...getAuthHeaders(accessToken),
-  };
-}
-
-async function unwrap<T>(response: Response): Promise<T> {
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Request failed");
-  }
-  return result.data as T;
-}
+const GENERATE_FEES_TIMEOUT_MS = 60_000;
 
 // ── Fee categories ─────────────────────────────────────────────────────
 export async function listFeeCategories(
   accessToken?: string | null,
 ): Promise<FeeCategory[]> {
-  const response = await fetch(`${API_BASE_URL}/fees/categories`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  return unwrap<FeeCategory[]>(response);
+  return apiData<FeeCategory[]>(
+    `${API_BASE_URL}/fees/categories`,
+    { headers: authHeaders(accessToken) },
+  );
 }
 
 export async function createFeeCategory(
   data: Omit<FeeCategory, "id">,
   accessToken?: string | null,
 ): Promise<FeeCategory> {
-  const response = await fetch(`${API_BASE_URL}/fees/categories`, {
-    method: "POST",
-    headers: jsonHeaders(accessToken),
-    body: JSON.stringify(data),
-  });
-  return unwrap<FeeCategory>(response);
+  return apiData<FeeCategory>(
+    `${API_BASE_URL}/fees/categories`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
+    },
+  );
 }
 
 export async function updateFeeCategory(
@@ -49,23 +33,27 @@ export async function updateFeeCategory(
   data: Partial<FeeCategory>,
   accessToken?: string | null,
 ): Promise<FeeCategory> {
-  const response = await fetch(`${API_BASE_URL}/fees/categories/${id}`, {
-    method: "PUT",
-    headers: jsonHeaders(accessToken),
-    body: JSON.stringify(data),
-  });
-  return unwrap<FeeCategory>(response);
+  return apiData<FeeCategory>(
+    `${API_BASE_URL}/fees/categories/${id}`,
+    {
+      method: "PUT",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
+    },
+  );
 }
 
 export async function deleteFeeCategory(
   id: string,
   accessToken?: string | null,
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/fees/categories/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-  await unwrap<{ message: string }>(response);
+  await apiData<{ message: string }>(
+    `${API_BASE_URL}/fees/categories/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+  );
 }
 
 // ── Payment methods ────────────────────────────────────────────────────
@@ -77,10 +65,10 @@ export interface PaymentMethod {
 export async function listPaymentMethods(
   accessToken?: string | null,
 ): Promise<PaymentMethod[]> {
-  const response = await fetch(`${API_BASE_URL}/payment-methods`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  return unwrap<PaymentMethod[]>(response);
+  return apiData<PaymentMethod[]>(
+    `${API_BASE_URL}/payment-methods`,
+    { headers: authHeaders(accessToken) },
+  );
 }
 
 // ── Fee structures ─────────────────────────────────────────────────────
@@ -139,22 +127,24 @@ export async function listFeeStructures(
   if (filters.academicSessionId) query.append("academicSessionId", filters.academicSessionId);
   if (filters.classId) query.append("classId", filters.classId);
   const qs = query.toString() ? `?${query.toString()}` : "";
-  const response = await fetch(`${API_BASE_URL}/fees/structures${qs}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  return unwrap<FeeStructureRaw[]>(response);
+  return apiData<FeeStructureRaw[]>(
+    `${API_BASE_URL}/fees/structures${qs}`,
+    { headers: authHeaders(accessToken) },
+  );
 }
 
 export async function createFeeStructure(
   data: CreateFeeStructurePayload,
   accessToken?: string | null,
 ): Promise<FeeStructureRaw> {
-  const response = await fetch(`${API_BASE_URL}/fees/structures`, {
-    method: "POST",
-    headers: jsonHeaders(accessToken),
-    body: JSON.stringify(data),
-  });
-  return unwrap<FeeStructureRaw>(response);
+  return apiData<FeeStructureRaw>(
+    `${API_BASE_URL}/fees/structures`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
+    },
+  );
 }
 
 export async function updateFeeStructure(
@@ -162,23 +152,27 @@ export async function updateFeeStructure(
   data: UpdateFeeStructurePayload,
   accessToken?: string | null,
 ): Promise<FeeStructureRaw> {
-  const response = await fetch(`${API_BASE_URL}/fees/structures/${id}`, {
-    method: "PATCH",
-    headers: jsonHeaders(accessToken),
-    body: JSON.stringify(data),
-  });
-  return unwrap<FeeStructureRaw>(response);
+  return apiData<FeeStructureRaw>(
+    `${API_BASE_URL}/fees/structures/${id}`,
+    {
+      method: "PATCH",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
+    },
+  );
 }
 
 export async function deleteFeeStructure(
   id: string,
   accessToken?: string | null,
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/fees/structures/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-  await unwrap<{ message: string }>(response);
+  await apiData<{ message: string }>(
+    `${API_BASE_URL}/fees/structures/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+  );
 }
 
 // ── Invoice rows / summaries / generation ──────────────────────────────
@@ -260,10 +254,10 @@ export async function listInvoiceRows(
   if (filters.classId) query.append("classId", filters.classId);
   if (filters.sectionId) query.append("sectionId", filters.sectionId);
   const qs = query.toString() ? `?${query.toString()}` : "";
-  const response = await fetch(`${API_BASE_URL}/fees/students${qs}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  return unwrap<InvoiceRowRaw[]>(response);
+  return apiData<InvoiceRowRaw[]>(
+    `${API_BASE_URL}/fees/students${qs}`,
+    { headers: authHeaders(accessToken) },
+  );
 }
 
 export async function listStudentSummaries(
@@ -275,10 +269,10 @@ export async function listStudentSummaries(
   if (filters.classId) query.append("classId", filters.classId);
   if (filters.sectionId) query.append("sectionId", filters.sectionId);
   const qs = query.toString() ? `?${query.toString()}` : "";
-  const response = await fetch(`${API_BASE_URL}/fees/students/summary${qs}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  return unwrap<StudentSummaryRaw[]>(response);
+  return apiData<StudentSummaryRaw[]>(
+    `${API_BASE_URL}/fees/students/summary${qs}`,
+    { headers: authHeaders(accessToken) },
+  );
 }
 
 export async function generateFees(
@@ -290,23 +284,26 @@ export async function generateFees(
   },
   accessToken?: string | null,
 ): Promise<{ generated: number }> {
-  const response = await fetch(`${API_BASE_URL}/fees/students/generate`, {
-    method: "POST",
-    headers: jsonHeaders(accessToken),
-    body: JSON.stringify(data),
-  });
-  return unwrap<{ generated: number }>(response);
+  return apiData<{ generated: number }>(
+    `${API_BASE_URL}/fees/students/generate`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
+    },
+    "Request failed",
+    { timeoutMs: GENERATE_FEES_TIMEOUT_MS, retry: false },
+  );
 }
 
 export async function getEnrollmentAccount(
   studentEnrollmentId: string,
   accessToken?: string | null,
 ): Promise<EnrollmentAccount> {
-  const response = await fetch(
+  return apiData<EnrollmentAccount>(
     `${API_BASE_URL}/fees/students/${studentEnrollmentId}`,
-    { headers: getAuthHeaders(accessToken) },
+    { headers: authHeaders(accessToken) },
   );
-  return unwrap<EnrollmentAccount>(response);
 }
 
 // ── Student fee head assignments (per-student add/remove) ──────────────
@@ -342,11 +339,10 @@ export async function listStudentFeeHeads(
   studentEnrollmentId: string,
   accessToken?: string | null,
 ): Promise<StudentFeeHeadsResponse> {
-  const response = await fetch(
+  return apiData<StudentFeeHeadsResponse>(
     `${API_BASE_URL}/fees/students/${studentEnrollmentId}/fee-heads`,
-    { headers: getAuthHeaders(accessToken) },
+    { headers: authHeaders(accessToken) },
   );
-  return unwrap<StudentFeeHeadsResponse>(response);
 }
 
 export async function setStudentFeeHead(
@@ -355,7 +351,7 @@ export async function setStudentFeeHead(
   action: FeeItemAction,
   accessToken?: string | null,
 ): Promise<EnrollmentAccount> {
-  const response = await fetch(
+  return apiData<EnrollmentAccount>(
     `${API_BASE_URL}/fees/students/${studentEnrollmentId}/fee-heads`,
     {
       method: "POST",
@@ -363,7 +359,6 @@ export async function setStudentFeeHead(
       body: JSON.stringify({ feeStructureItemId, action }),
     },
   );
-  return unwrap<EnrollmentAccount>(response);
 }
 
 export async function clearStudentFeeHead(
@@ -371,14 +366,13 @@ export async function clearStudentFeeHead(
   feeStructureItemId: string,
   accessToken?: string | null,
 ): Promise<EnrollmentAccount> {
-  const response = await fetch(
+  return apiData<EnrollmentAccount>(
     `${API_BASE_URL}/fees/students/${studentEnrollmentId}/fee-heads/${feeStructureItemId}`,
     {
       method: "DELETE",
-      headers: getAuthHeaders(accessToken),
+      headers: authHeaders(accessToken),
     },
   );
-  return unwrap<EnrollmentAccount>(response);
 }
 
 // ── Collections ────────────────────────────────────────────────────────
@@ -428,12 +422,14 @@ export async function createFeeCollection(
   data: CreateFeeCollectionPayload,
   accessToken?: string | null,
 ): Promise<FeeCollectionRaw> {
-  const response = await fetch(`${API_BASE_URL}/fees/collections`, {
-    method: "POST",
-    headers: jsonHeaders(accessToken),
-    body: JSON.stringify(data),
-  });
-  return unwrap<FeeCollectionRaw>(response);
+  return apiData<FeeCollectionRaw>(
+    `${API_BASE_URL}/fees/collections`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
+    },
+  );
 }
 
 export async function listFeeCollections(
@@ -443,20 +439,20 @@ export async function listFeeCollections(
   const query = new URLSearchParams();
   if (filters.studentEnrollmentId) query.append("studentEnrollmentId", filters.studentEnrollmentId);
   const qs = query.toString() ? `?${query.toString()}` : "";
-  const response = await fetch(`${API_BASE_URL}/fees/collections${qs}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  return unwrap<FeeCollectionRaw[]>(response);
+  return apiData<FeeCollectionRaw[]>(
+    `${API_BASE_URL}/fees/collections${qs}`,
+    { headers: authHeaders(accessToken) },
+  );
 }
 
 export async function getFeeCollection(
   idOrReceipt: string,
   accessToken?: string | null,
 ): Promise<FeeCollectionRaw> {
-  const response = await fetch(`${API_BASE_URL}/fees/collections/${idOrReceipt}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  return unwrap<FeeCollectionRaw>(response);
+  return apiData<FeeCollectionRaw>(
+    `${API_BASE_URL}/fees/collections/${idOrReceipt}`,
+    { headers: authHeaders(accessToken) },
+  );
 }
 
 // ── Discounts & fines ──────────────────────────────────────────────────
@@ -485,17 +481,19 @@ export async function createFeeDiscount(
   data: { studentFeeAssignmentId: string; feeStructureItemId?: string; amount: number; reason: string },
   accessToken?: string | null,
 ): Promise<DiscountRaw> {
-  const response = await fetch(`${API_BASE_URL}/fees/discounts`, {
-    method: "POST",
-    headers: jsonHeaders(accessToken),
-    body: JSON.stringify({
-      studentFeeAssignmentId: data.studentFeeAssignmentId,
-      ...(data.feeStructureItemId ? { feeStructureItemId: data.feeStructureItemId } : {}),
-      amount: data.amount,
-      reason: data.reason,
-    }),
-  });
-  return unwrap<DiscountRaw>(response);
+  return apiData<DiscountRaw>(
+    `${API_BASE_URL}/fees/discounts`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify({
+        studentFeeAssignmentId: data.studentFeeAssignmentId,
+        ...(data.feeStructureItemId ? { feeStructureItemId: data.feeStructureItemId } : {}),
+        amount: data.amount,
+        reason: data.reason,
+      }),
+    },
+  );
 }
 
 export async function listFeeDiscounts(
@@ -505,27 +503,29 @@ export async function listFeeDiscounts(
   const query = new URLSearchParams();
   if (filters.studentEnrollmentId) query.append("studentEnrollmentId", filters.studentEnrollmentId);
   const qs = query.toString() ? `?${query.toString()}` : "";
-  const response = await fetch(`${API_BASE_URL}/fees/discounts${qs}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  return unwrap<DiscountRaw[]>(response);
+  return apiData<DiscountRaw[]>(
+    `${API_BASE_URL}/fees/discounts${qs}`,
+    { headers: authHeaders(accessToken) },
+  );
 }
 
 export async function createFeeFine(
   data: { studentFeeAssignmentId: string; feeStructureItemId?: string; amount: number; reason: string },
   accessToken?: string | null,
 ): Promise<FineRaw> {
-  const response = await fetch(`${API_BASE_URL}/fees/fines`, {
-    method: "POST",
-    headers: jsonHeaders(accessToken),
-    body: JSON.stringify({
-      studentFeeAssignmentId: data.studentFeeAssignmentId,
-      ...(data.feeStructureItemId ? { feeStructureItemId: data.feeStructureItemId } : {}),
-      amount: data.amount,
-      reason: data.reason,
-    }),
-  });
-  return unwrap<FineRaw>(response);
+  return apiData<FineRaw>(
+    `${API_BASE_URL}/fees/fines`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify({
+        studentFeeAssignmentId: data.studentFeeAssignmentId,
+        ...(data.feeStructureItemId ? { feeStructureItemId: data.feeStructureItemId } : {}),
+        amount: data.amount,
+        reason: data.reason,
+      }),
+    },
+  );
 }
 
 export async function updateFeeFine(
@@ -533,23 +533,27 @@ export async function updateFeeFine(
   data: { amount: number; reason: string },
   accessToken?: string | null,
 ): Promise<FineRaw> {
-  const response = await fetch(`${API_BASE_URL}/fees/fines/${id}`, {
-    method: "PATCH",
-    headers: jsonHeaders(accessToken),
-    body: JSON.stringify(data),
-  });
-  return unwrap<FineRaw>(response);
+  return apiData<FineRaw>(
+    `${API_BASE_URL}/fees/fines/${id}`,
+    {
+      method: "PATCH",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
+    },
+  );
 }
 
 export async function deleteFeeFine(
   id: string,
   accessToken?: string | null,
 ): Promise<{ message: string }> {
-  const response = await fetch(`${API_BASE_URL}/fees/fines/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-  return unwrap<{ message: string }>(response);
+  return apiData<{ message: string }>(
+    `${API_BASE_URL}/fees/fines/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+  );
 }
 
 export async function listFeeFines(
@@ -559,10 +563,10 @@ export async function listFeeFines(
   const query = new URLSearchParams();
   if (filters.studentEnrollmentId) query.append("studentEnrollmentId", filters.studentEnrollmentId);
   const qs = query.toString() ? `?${query.toString()}` : "";
-  const response = await fetch(`${API_BASE_URL}/fees/fines${qs}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  return unwrap<FineRaw[]>(response);
+  return apiData<FineRaw[]>(
+    `${API_BASE_URL}/fees/fines${qs}`,
+    { headers: authHeaders(accessToken) },
+  );
 }
 
 // ── Expenses ───────────────────────────────────────────────────────────
@@ -593,22 +597,24 @@ export async function listExpenses(
   if (filters.to) query.append("to", filters.to);
   if (filters.category) query.append("category", filters.category);
   const qs = query.toString() ? `?${query.toString()}` : "";
-  const response = await fetch(`${API_BASE_URL}/expenses${qs}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  return unwrap<ExpenseRaw[]>(response);
+  return apiData<ExpenseRaw[]>(
+    `${API_BASE_URL}/expenses${qs}`,
+    { headers: authHeaders(accessToken) },
+  );
 }
 
 export async function createExpense(
   data: CreateExpensePayload,
   accessToken?: string | null,
 ): Promise<ExpenseRaw> {
-  const response = await fetch(`${API_BASE_URL}/expenses`, {
-    method: "POST",
-    headers: jsonHeaders(accessToken),
-    body: JSON.stringify(data),
-  });
-  return unwrap<ExpenseRaw>(response);
+  return apiData<ExpenseRaw>(
+    `${API_BASE_URL}/expenses`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
+    },
+  );
 }
 
 export async function updateExpense(
@@ -616,21 +622,25 @@ export async function updateExpense(
   data: Partial<CreateExpensePayload>,
   accessToken?: string | null,
 ): Promise<ExpenseRaw> {
-  const response = await fetch(`${API_BASE_URL}/expenses/${id}`, {
-    method: "PATCH",
-    headers: jsonHeaders(accessToken),
-    body: JSON.stringify(data),
-  });
-  return unwrap<ExpenseRaw>(response);
+  return apiData<ExpenseRaw>(
+    `${API_BASE_URL}/expenses/${id}`,
+    {
+      method: "PATCH",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
+    },
+  );
 }
 
 export async function deleteExpense(
   id: string,
   accessToken?: string | null,
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/expenses/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-  await unwrap<{ message: string }>(response);
+  await apiData<{ message: string }>(
+    `${API_BASE_URL}/expenses/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+  );
 }

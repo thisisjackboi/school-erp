@@ -100,6 +100,13 @@ export const MODULE_ROUTES: NavItem[] = [
     permission: "access.read",
   },
   {
+    title: "Notice Board",
+    href: "/announcements",
+    iconName: "Megaphone",
+    group: "administration",
+    permission: "notices.read",
+  },
+  {
     title: "Designations",
     href: "/designations",
     iconName: "BriefcaseBusiness",
@@ -163,6 +170,13 @@ export const MODULE_ROUTES: NavItem[] = [
     permission: "teacher-subject-assignments.read",
   },
   {
+    title: "Homework",
+    href: "/homework",
+    iconName: "BookOpenCheck",
+    group: "students-class",
+    anyPermission: ["homework.read", "homework.read.own"],
+  },
+  {
     title: "Admissions",
     href: "/admissions",
     iconName: "UserPlus",
@@ -174,6 +188,13 @@ export const MODULE_ROUTES: NavItem[] = [
     iconName: "Users",
     group: "students-class",
     permission: "students.read",
+  },
+  {
+    title: "Student Promotion",
+    href: "/students/promote",
+    iconName: "GraduationCap",
+    group: "students-class",
+    permission: "students.promote",
   },
   {
     title: "Attendance",

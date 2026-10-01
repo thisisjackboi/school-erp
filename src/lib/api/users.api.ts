@@ -1,15 +1,6 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 import type { PaginatedResponse, RbacUser, Role } from "../types/rbac";
-
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {}),
-  };
-}
 
 export type UserType = "SYSTEM" | "EMPLOYEE" | "STUDENT" | "GUARDIAN";
 
@@ -48,17 +39,11 @@ export async function getUsers(
     params.set("status", status);
   }
 
-  const response = await fetch(`${API_BASE_URL}/users?${params.toString()}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch users");
-  }
-
-  return result.data;
+  return apiData<PaginatedResponse<RbacUser>>(
+    `${API_BASE_URL}/users?${params.toString()}`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch users",
+  );
 }
 
 export async function checkUsernameAvailability(
@@ -67,59 +52,37 @@ export async function checkUsernameAvailability(
 ): Promise<{ available: boolean }> {
   const params = new URLSearchParams({ username });
 
-  const response = await fetch(
+  return apiData<{ available: boolean }>(
     `${API_BASE_URL}/users/check-username?${params.toString()}`,
-    {
-      headers: getAuthHeaders(accessToken),
-    },
+    { headers: authHeaders(accessToken) },
+    "Failed to check username",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to check username");
-  }
-
-  return result.data;
 }
 
 export async function createUser(
   data: CreateUserPayload,
   accessToken?: string | null,
 ): Promise<RbacUser> {
-  const response = await fetch(`${API_BASE_URL}/users`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<RbacUser>(
+    `${API_BASE_URL}/users`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to create user");
-  }
-
-  return result.data;
+    "Failed to create user",
+  );
 }
 
 export async function getUserRoles(
   userId: string,
   accessToken?: string | null,
 ): Promise<Role[]> {
-  const response = await fetch(`${API_BASE_URL}/users/${userId}/roles`, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch user roles");
-  }
-
-  return result.data;
+  return apiData<Role[]>(
+    `${API_BASE_URL}/users/${userId}/roles`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch user roles",
+  );
 }
 
 export async function updateUserRoles(
@@ -130,58 +93,46 @@ export async function updateUserRoles(
   userId: string;
   roles: Role[];
 }> {
-  const response = await fetch(`${API_BASE_URL}/users/${userId}/roles`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<{
+    userId: string;
+    roles: Role[];
+  }>(
+    `${API_BASE_URL}/users/${userId}/roles`,
+    {
+      method: "PUT",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify({
+        roleIds,
+      }),
     },
-    body: JSON.stringify({
-      roleIds,
-    }),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to update user roles");
-  }
-
-  return result.data;
+    "Failed to update user roles",
+  );
 }
 
 export async function deleteUser(
   userId: string,
   accessToken?: string | null,
 ): Promise<{ message: string }> {
-  const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to deactivate user");
-  }
-
-  return result.data;
+  return apiData<{ message: string }>(
+    `${API_BASE_URL}/users/${userId}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+    "Failed to deactivate user",
+  );
 }
 
 export async function restoreUser(
   userId: string,
   accessToken?: string | null,
 ): Promise<{ message: string }> {
-  const response = await fetch(`${API_BASE_URL}/users/${userId}/restore`, {
-    method: "PATCH",
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to reactivate user");
-  }
-
-  return result.data;
+  return apiData<{ message: string }>(
+    `${API_BASE_URL}/users/${userId}/restore`,
+    {
+      method: "PATCH",
+      headers: authHeaders(accessToken),
+    },
+    "Failed to reactivate user",
+  );
 }

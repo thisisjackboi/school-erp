@@ -1,11 +1,6 @@
 import { API_BASE_URL } from "./config";
+import { apiData, apiRequest, authHeaders, jsonHeaders } from "./request";
 import type { ExamResult, ResultStatus } from "../types/marks";
-
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-  };
-}
 
 export interface GetExamResultsFilters {
   academicSessionId?: string;
@@ -46,27 +41,25 @@ export async function getExamResults(
   if (filters?.gradeId) query.append("gradeId", filters.gradeId);
 
   const queryString = query.toString() ? `?${query.toString()}` : "";
-  const response = await fetch(`${API_BASE_URL}/exam-results${queryString}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch exam results");
-  }
-  return (result.data as ExamResult[]).map(toExamResult);
+  const result = await apiRequest<ExamResult[]>(
+    `${API_BASE_URL}/exam-results${queryString}`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch exam results",
+  );
+
+  return result.data.map(toExamResult);
 }
 
 export async function getExamResult(
   id: string,
   accessToken?: string | null
 ): Promise<ExamResult> {
-  const response = await fetch(`${API_BASE_URL}/exam-results/${id}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch exam result");
-  }
+  const result = await apiRequest<ExamResult>(
+    `${API_BASE_URL}/exam-results/${id}`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch exam result",
+  );
+
   return toExamResult(result.data);
 }
 
@@ -74,19 +67,15 @@ export async function createExamResult(
   data: CreateExamResultPayload,
   accessToken?: string | null
 ): Promise<ExamResult> {
-  const response = await fetch(`${API_BASE_URL}/exam-results`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<ExamResult>(
+    `${API_BASE_URL}/exam-results`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to create exam result");
-  }
-  return result.data;
+    "Failed to create exam result",
+  );
 }
 
 export async function updateExamResult(
@@ -94,33 +83,29 @@ export async function updateExamResult(
   data: UpdateExamResultPayload,
   accessToken?: string | null
 ): Promise<ExamResult> {
-  const response = await fetch(`${API_BASE_URL}/exam-results/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<ExamResult>(
+    `${API_BASE_URL}/exam-results/${id}`,
+    {
+      method: "PUT",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to update exam result");
-  }
-  return result.data;
+    "Failed to update exam result",
+  );
 }
 
 export async function deleteExamResult(
   id: string,
   accessToken?: string | null
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/exam-results/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to delete exam result");
-  }
+  await apiData<unknown>(
+    `${API_BASE_URL}/exam-results/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+    "Failed to delete exam result",
+  );
 }
 
 export async function deleteExamResults(

@@ -24,6 +24,7 @@ export const MODULE_PERMISSION_MAP: Record<string, string[]> = {
   "/class-subjects": ["class-subjects.read"],
   "/teacher-subject-assignments": ["teacher-subject-assignments.read"],
   "/students": ["students.read"],
+  "/students/promote": ["students.promote"],
   "/admissions": ["admissions.read"],
   "/attendance": ["student-attendance.read"],
   "/timetable": ["timetable-periods.read", "timetable-slots.read"],
@@ -41,6 +42,7 @@ export const MODULE_PERMISSION_MAP: Record<string, string[]> = {
   "/fees/reports": ["fees.reports.read"],
   "/library": ["library.read"],
   "/announcements": ["notices.read"],
+  "/homework": ["homework.read", "homework.read.own"],
 };
 
 /**

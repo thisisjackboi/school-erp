@@ -1,11 +1,6 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 import type { Mark } from "../types/marks";
-
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-  };
-}
 
 export interface GetMarksFilters {
   examScheduleId?: string;
@@ -51,66 +46,52 @@ export async function getMarks(
   if (filters?.subjectId) query.append("subjectId", filters.subjectId);
 
   const queryString = query.toString() ? `?${query.toString()}` : "";
-  const response = await fetch(`${API_BASE_URL}/marks${queryString}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch marks");
-  }
-  return result.data;
+  return apiData<Mark[]>(
+    `${API_BASE_URL}/marks${queryString}`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch marks",
+  );
 }
 
 export async function getMark(
   id: string,
   accessToken?: string | null
 ): Promise<Mark> {
-  const response = await fetch(`${API_BASE_URL}/marks/${id}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch mark");
-  }
-  return result.data;
+  return apiData<Mark>(
+    `${API_BASE_URL}/marks/${id}`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch mark",
+  );
 }
 
 export async function createMark(
   data: CreateMarkPayload,
   accessToken?: string | null
 ): Promise<Mark> {
-  const response = await fetch(`${API_BASE_URL}/marks`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Mark>(
+    `${API_BASE_URL}/marks`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to create mark");
-  }
-  return result.data;
+    "Failed to create mark",
+  );
 }
 
 export async function bulkCreateMarks(
   data: BulkCreateMarkPayload,
   accessToken?: string | null
 ): Promise<Mark[]> {
-  const response = await fetch(`${API_BASE_URL}/marks/bulk`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Mark[]>(
+    `${API_BASE_URL}/marks/bulk`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to bulk create marks");
-  }
-  return result.data;
+    "Failed to bulk create marks",
+  );
 }
 
 export async function updateMark(
@@ -118,33 +99,29 @@ export async function updateMark(
   data: UpdateMarkPayload,
   accessToken?: string | null
 ): Promise<Mark> {
-  const response = await fetch(`${API_BASE_URL}/marks/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Mark>(
+    `${API_BASE_URL}/marks/${id}`,
+    {
+      method: "PUT",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to update mark");
-  }
-  return result.data;
+    "Failed to update mark",
+  );
 }
 
 export async function deleteMark(
   id: string,
   accessToken?: string | null
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/marks/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to delete mark");
-  }
+  await apiData<unknown>(
+    `${API_BASE_URL}/marks/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+    "Failed to delete mark",
+  );
 }
 
 export async function deleteMarks(

@@ -18,7 +18,7 @@ import type { SchoolClass } from "@/lib/types/class";
 import type { Section } from "@/lib/types/section";
 import { AdmissionFormDialog } from "@/components/modules/admission-form-dialog";
 import { PermissionGate } from "@/components/auth/permission-gate";
-import { UserPlus, Eye, Trash2, ChevronDown } from "lucide-react";
+import { UserPlus, Eye, Trash2, ChevronDown, GraduationCap } from "lucide-react";
 
 export default function StudentsPage() {
   const { accessToken } = useAuth();
@@ -190,14 +190,25 @@ export default function StudentsPage() {
             Manage enrolled student profiles, academic records &amp; parent contact details.
           </p>
         </div>
-        <PermissionGate permission="students.create">
-          <Button
-            onClick={() => setIsAdmissionOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-xs"
-          >
-            <UserPlus className="mr-1.5 h-3.5 w-3.5" /> New Student Admission
-          </Button>
-        </PermissionGate>
+        <div className="flex flex-wrap items-center gap-2">
+          <PermissionGate permission="students.promote">
+            <Button
+              onClick={() => navigate("/students/promote")}
+              variant="outline"
+              className="text-xs"
+            >
+              <GraduationCap className="mr-1.5 h-3.5 w-3.5" /> Promote Students
+            </Button>
+          </PermissionGate>
+          <PermissionGate permission="students.create">
+            <Button
+              onClick={() => setIsAdmissionOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-xs"
+            >
+              <UserPlus className="mr-1.5 h-3.5 w-3.5" /> New Student Admission
+            </Button>
+          </PermissionGate>
+        </div>
       </div>
 
       {/* Cascading Filters Bar */}

@@ -11,6 +11,7 @@ import DashboardPage from "@/pages/dashboard";
 import PermissionsPage from "@/pages/permissions/index";
 import StudentsPage from "@/pages/students/index";
 import StudentProfilePage from "@/pages/students/profile";
+import StudentPromotionsPage from "@/pages/students/promote";
 
 import ClassesPage from "@/pages/classes/index";
 import ClassSubjectsPage from "@/pages/class-subjects/index";
@@ -81,6 +82,7 @@ export function App() {
             element={<TeacherSubjectAssignmentsPage />}
           />
           <Route path="/students" element={<StudentsPage />} />
+          <Route path="/students/promote" element={<StudentPromotionsPage />} />
           <Route path="/students/:studentId" element={<StudentProfilePage />} />
           <Route path="/admissions" element={<AdmissionsPage />} />
           <Route path="/classes" element={<ClassesPage />} />

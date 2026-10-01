@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -36,6 +37,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 export function RolePermissionManager() {
   const { accessToken } = useAuth();
@@ -43,6 +45,9 @@ export function RolePermissionManager() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] =
     useState<Permission[]>([]);
+
+  const [isRolesTruncated, setIsRolesTruncated] =
+    useState(false);
 
   const [selectedRole, setSelectedRole] =
     useState<Role | null>(null);
@@ -97,6 +102,13 @@ export function RolePermissionManager() {
         setRoles(rolesResponse.items);
         setPermissions(
           permissionsResponse.items,
+        );
+
+        // The role picker loads a single page of roles. Surface it when the
+        // backend holds more than we fetched, so the list is never mistaken
+        // for the complete set.
+        setIsRolesTruncated(
+          rolesResponse.meta.total > rolesResponse.items.length,
         );
 
         setExpandedModules([
@@ -414,6 +426,14 @@ export function RolePermissionManager() {
         </div>
       )}
 
+      {isRolesTruncated && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          Showing the first {roles.length} roles. More roles
+          exist on the server than are listed here.
+        </div>
+      )}
+
       {/* Main Layout */}
 
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -531,27 +551,29 @@ export function RolePermissionManager() {
                 selected
               </Badge>
 
-              <Button
-                type="button"
-                onClick={handleSave}
-                disabled={
-                  isSaving ||
-                  !selectedRole
-                }
-                className="bg-blue-600 text-xs hover:bg-blue-700"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Check className="mr-1.5 h-3.5 w-3.5" />
-                    Save Changes
-                  </>
-                )}
-              </Button>
+              <PermissionGate permission="access.update">
+                <Button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={
+                    isSaving ||
+                    !selectedRole
+                  }
+                  className="bg-blue-600 text-xs hover:bg-blue-700"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="mr-1.5 h-3.5 w-3.5" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+              </PermissionGate>
             </div>
           </CardHeader>
 

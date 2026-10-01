@@ -1,11 +1,6 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 import type { ExamType } from "../types/exam";
-
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-  };
-}
 
 export interface CreateExamTypePayload {
   name: string;
@@ -20,47 +15,37 @@ export interface UpdateExamTypePayload {
 export async function getExamTypes(
   accessToken?: string | null
 ): Promise<ExamType[]> {
-  const response = await fetch(`${API_BASE_URL}/exam-types`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch exam types");
-  }
-  return result.data;
+  return apiData<ExamType[]>(
+    `${API_BASE_URL}/exam-types`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch exam types",
+  );
 }
 
 export async function getExamType(
   id: string,
   accessToken?: string | null
 ): Promise<ExamType> {
-  const response = await fetch(`${API_BASE_URL}/exam-types/${id}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch exam type");
-  }
-  return result.data;
+  return apiData<ExamType>(
+    `${API_BASE_URL}/exam-types/${id}`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch exam type",
+  );
 }
 
 export async function createExamType(
   data: CreateExamTypePayload,
   accessToken?: string | null
 ): Promise<ExamType> {
-  const response = await fetch(`${API_BASE_URL}/exam-types`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<ExamType>(
+    `${API_BASE_URL}/exam-types`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to create exam type");
-  }
-  return result.data;
+    "Failed to create exam type",
+  );
 }
 
 export async function updateExamType(
@@ -68,31 +53,27 @@ export async function updateExamType(
   data: UpdateExamTypePayload,
   accessToken?: string | null
 ): Promise<ExamType> {
-  const response = await fetch(`${API_BASE_URL}/exam-types/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<ExamType>(
+    `${API_BASE_URL}/exam-types/${id}`,
+    {
+      method: "PUT",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to update exam type");
-  }
-  return result.data;
+    "Failed to update exam type",
+  );
 }
 
 export async function deleteExamType(
   id: string,
   accessToken?: string | null
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/exam-types/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to delete exam type");
-  }
+  await apiData<unknown>(
+    `${API_BASE_URL}/exam-types/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+    "Failed to delete exam type",
+  );
 }

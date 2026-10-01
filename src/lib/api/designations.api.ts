@@ -1,16 +1,7 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 
 import type { Designation } from "../types/designation";
-
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {}),
-  };
-}
 
 export interface CreateDesignationPayload {
   title: string;
@@ -25,56 +16,37 @@ export interface UpdateDesignationPayload {
 export async function getDesignations(
   accessToken?: string | null,
 ): Promise<Designation[]> {
-  const response = await fetch(`${API_BASE_URL}/designations`, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch designations");
-  }
-
-  return result.data;
+  return apiData<Designation[]>(
+    `${API_BASE_URL}/designations`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch designations",
+  );
 }
 
 export async function getDesignation(
   id: string,
   accessToken?: string | null,
 ): Promise<Designation> {
-  const response = await fetch(`${API_BASE_URL}/designations/${id}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch designation");
-  }
-
-  return result.data;
+  return apiData<Designation>(
+    `${API_BASE_URL}/designations/${id}`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch designation",
+  );
 }
 
 export async function createDesignation(
   data: CreateDesignationPayload,
   accessToken?: string | null,
 ): Promise<Designation> {
-  const response = await fetch(`${API_BASE_URL}/designations`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Designation>(
+    `${API_BASE_URL}/designations`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to create designation");
-  }
-
-  return result.data;
+    "Failed to create designation",
+  );
 }
 
 export async function updateDesignation(
@@ -82,20 +54,13 @@ export async function updateDesignation(
   data: UpdateDesignationPayload,
   accessToken?: string | null,
 ): Promise<Designation> {
-  const response = await fetch(`${API_BASE_URL}/designations/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Designation>(
+    `${API_BASE_URL}/designations/${id}`,
+    {
+      method: "PUT",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to update designation");
-  }
-
-  return result.data;
+    "Failed to update designation",
+  );
 }

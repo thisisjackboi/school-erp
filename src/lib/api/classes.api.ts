@@ -1,20 +1,9 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 
 import type {
   SchoolClass,
 } from "../types/class";
-
-function getAuthHeaders(
-  accessToken?: string | null,
-) {
-  return {
-    ...(accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {}),
-  };
-}
 
 export interface CreateClassPayload {
   name: string;
@@ -29,51 +18,26 @@ export interface UpdateClassPayload {
 export async function getClasses(
   accessToken?: string | null,
 ): Promise<SchoolClass[]> {
-  const response = await fetch(
+  return apiData<SchoolClass[]>(
     `${API_BASE_URL}/classes`,
-    {
-      headers: getAuthHeaders(accessToken),
-    },
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch classes",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to fetch classes",
-    );
-  }
-
-  return result.data;
 }
 
 export async function createClass(
   data: CreateClassPayload,
   accessToken?: string | null,
 ): Promise<SchoolClass> {
-  const response = await fetch(
+  return apiData<SchoolClass>(
     `${API_BASE_URL}/classes`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(accessToken),
-      },
+      headers: jsonHeaders(accessToken),
       body: JSON.stringify(data),
     },
+    "Failed to create class",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to create class",
-    );
-  }
-
-  return result.data;
 }
 
 export async function updateClass(
@@ -81,26 +45,13 @@ export async function updateClass(
   data: UpdateClassPayload,
   accessToken?: string | null,
 ): Promise<SchoolClass> {
-  const response = await fetch(
+  return apiData<SchoolClass>(
     `${API_BASE_URL}/classes/${id}`,
     {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(accessToken),
-      },
+      headers: jsonHeaders(accessToken),
       body: JSON.stringify(data),
     },
+    "Failed to update class",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to update class",
-    );
-  }
-
-  return result.data;
 }

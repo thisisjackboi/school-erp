@@ -1,20 +1,11 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 import type {
   StudentProfile,
   StudentRecord,
   Gender,
   StudentStatus,
 } from "../types/student";
-
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {}),
-  };
-}
 
 export interface CreateStudentPayload {
   username: string;
@@ -62,56 +53,37 @@ export async function getStudents(
   const qs = params.toString();
   const url = `${API_BASE_URL}/students${qs ? `?${qs}` : ""}`;
 
-  const response = await fetch(url, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch students");
-  }
-
-  return result.data;
+  return apiData<StudentRecord[]>(
+    url,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch students",
+  );
 }
 
 export async function getStudent(
   id: string,
   accessToken?: string | null,
 ): Promise<StudentProfile> {
-  const response = await fetch(`${API_BASE_URL}/students/${id}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch student");
-  }
-
-  return result.data;
+  return apiData<StudentProfile>(
+    `${API_BASE_URL}/students/${id}`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch student",
+  );
 }
 
 export async function createStudent(
   data: CreateStudentPayload,
   accessToken?: string | null,
 ): Promise<{ student: StudentRecord; user: any }> {
-  const response = await fetch(`${API_BASE_URL}/students`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<{ student: StudentRecord; user: any }>(
+    `${API_BASE_URL}/students`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to create student");
-  }
-
-  return result.data;
+    "Failed to create student",
+  );
 }
 
 export async function updateStudent(
@@ -119,36 +91,27 @@ export async function updateStudent(
   data: UpdateStudentPayload,
   accessToken?: string | null,
 ): Promise<StudentRecord> {
-  const response = await fetch(`${API_BASE_URL}/students/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<StudentRecord>(
+    `${API_BASE_URL}/students/${id}`,
+    {
+      method: "PUT",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to update student");
-  }
-
-  return result.data;
+    "Failed to update student",
+  );
 }
 
 export async function deleteStudent(
   id: string,
   accessToken?: string | null,
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/students/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to delete student");
-  }
+  await apiData<unknown>(
+    `${API_BASE_URL}/students/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+    "Failed to delete student",
+  );
 }
