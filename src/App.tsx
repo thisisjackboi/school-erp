@@ -36,7 +36,13 @@ import FeeStudentProfilePage from "@/pages/fees/student-profile";
 import FeeCollectPage from "@/pages/fees/collect";
 import FeeReportsPage from "@/pages/fees/reports";
 import FinancePage from "@/pages/finance";
-import PayrollPage from "@/pages/payroll";
+import PayrollModulePage from "@/pages/payroll/index";
+import PayrollRunsPage from "@/pages/payroll/runs";
+import PayrollRunDetailPage from "@/pages/payroll/run-detail";
+import PayrollStatusPage from "@/pages/payroll/status";
+import PayrollStructuresPage from "@/pages/payroll/structures";
+import PayrollComponentsPage from "@/pages/payroll/components";
+import PayrollPayslipPage from "@/pages/payroll/payslip";
 import TeachersPage from "@/pages/teachers";
 import LeavePage from "@/pages/leave";
 import LibraryPage from "@/pages/library";
@@ -110,7 +116,15 @@ export function App() {
             <Route path="reports" element={<FeeReportsPage />} />
           </Route>
           <Route path="/finance" element={<FinancePage />} />
-          <Route path="/payroll" element={<PayrollPage />} />
+          <Route path="/payroll" element={<PayrollModulePage />}>
+            <Route index element={<Navigate to="runs" replace />} />
+            <Route path="runs" element={<PayrollRunsPage />} />
+            <Route path="runs/:runId" element={<PayrollRunDetailPage />} />
+          <Route path="status" element={<PayrollStatusPage />} />
+            <Route path="structures" element={<PayrollStructuresPage />} />
+            <Route path="components" element={<PayrollComponentsPage />} />
+            <Route path="payslip/:itemId" element={<PayrollPayslipPage />} />
+          </Route>
           <Route path="/teachers" element={<TeachersPage />} />
           <Route path="/employees" element={<EmployeesPage />} />
           <Route path="/leave" element={<LeavePage />} />

@@ -35,6 +35,7 @@ export const NAV_GROUPS: NavGroupItem[] = [
   { id: "academic-setup", title: "Academic Setup", iconName: "School" },
   { id: "students-class", title: "Students & Class", iconName: "Users" },
   { id: "examinations", title: "Examinations", iconName: "GraduationCap" },
+  { id: "payroll", title: "Payroll", iconName: "BadgeIndianRupee" },
 ];
 
 /**
@@ -158,14 +159,14 @@ export const MODULE_ROUTES: NavItem[] = [
   {
     title: "Section Management",
     href: "/sections",
-    iconName: "layers",
+    iconName: "Layers",
     group: "academic-setup",
     permission: "sections.read",
   },
   {
     title: "Teacher Subject Assignment",
     href: "/teacher-subject-assignments",
-    iconName: "layers",
+    iconName: "Layers",
     group: "academic-setup",
     permission: "teacher-subject-assignments.read",
   },
@@ -272,6 +273,34 @@ export const MODULE_ROUTES: NavItem[] = [
     iconName: "BarChart3",
     group: "finance-fees",
     permission: "fees.categories.read",
+  },
+  {
+    title: "Payroll Runs",
+    href: "/payroll/runs",
+    iconName: "ClipboardCheck",
+    group: "payroll",
+    permission: "payroll.read",
+  },
+  {
+    title: "Salary Status",
+    href: "/payroll/status",
+    iconName: "FileCheck",
+    group: "payroll",
+    permission: "payroll.read",
+  },
+  {
+    title: "Salary Components",
+    href: "/payroll/components",
+    iconName: "Tags",
+    group: "payroll",
+    permission: "salary-components.read",
+  },
+  {
+    title: "Salary Structure",
+    href: "/payroll/structures",
+    iconName: "Wallet",
+    group: "payroll",
+    permission: "salary-structures.read",
   },
 ];
 

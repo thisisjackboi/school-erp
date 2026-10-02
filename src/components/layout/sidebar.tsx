@@ -43,6 +43,7 @@ import {
   BookOpenCheck,
   Layers,
   Tags,
+  BadgeIndianRupee,
   GraduationCap as SchoolLogo,
 } from "lucide-react";
 
@@ -82,6 +83,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   BookOpenCheck,
   Layers,
   Tags,
+  BadgeIndianRupee,
 };
 
 export function Sidebar() {
@@ -104,12 +106,19 @@ export function Sidebar() {
   const standaloneRoutes = visibleRoutes.filter((r) => !r.group);
   const groupedRoutes = visibleRoutes.filter((r) => r.group);
 
-  const isActive = (href: string) =>
-    href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
+  // Deepest match wins so an ancestor never highlights alongside its child
+  // (e.g. /students must not light up while /students/promote is active).
+  const activeHref = visibleRoutes
+    .filter((r) => pathname === r.href || pathname.startsWith(r.href + "/"))
+    .map((r) => r.href)
+    .sort((a, b) => b.length - a.length)[0];
+
+  const isActive = (href: string) => href === activeHref;
 
   // Auto-open the group containing the currently active route
   useEffect(() => {
-    const active = MODULE_ROUTES.find((r) => isActive(r.href));
+    if (!activeHref) return;
+    const active = visibleRoutes.find((r) => r.href === activeHref);
     if (active?.group) {
       setOpenGroups((prev) =>
         prev.has(active.group as string)
@@ -117,8 +126,7 @@ export function Sidebar() {
           : new Set(prev).add(active.group as string),
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [activeHref]);
 
   const toggleGroup = (id: string) => {
     setOpenGroups((prev) => {
