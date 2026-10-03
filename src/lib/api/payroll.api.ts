@@ -10,6 +10,8 @@ import type {
   GeneratePayrollPayload,
   GeneratePayrollResult,
   MarkPayrollPaidPayload,
+  PayrollAdjustmentListParams,
+  PayrollAdjustmentRegister,
   PayrollRegister,
   PayrollRun,
   PayrollRunItem,
@@ -89,6 +91,33 @@ export async function getPayslip(
   return {
     item: toPayrollRunItem(raw?.item),
     run: toPayrollRun(raw?.run),
+  };
+}
+
+/**
+ * Employee-wise bonus and deduction totals, narrowed by year and/or month.
+ * Leaving a filter off covers every period that has been run.
+ */
+export async function getPayrollAdjustments(
+  params: PayrollAdjustmentListParams = {},
+  accessToken?: string | null,
+): Promise<PayrollAdjustmentRegister> {
+  const query = new URLSearchParams();
+  if (params.year) query.set("year", String(params.year));
+  if (params.month) query.set("month", String(params.month));
+  if (params.employeeId) query.set("employeeId", params.employeeId);
+
+  const search = query.toString();
+  const raw = await apiData<PayrollAdjustmentRegister>(
+    `${API_BASE_URL}/payroll/adjustments${search ? `?${search}` : ""}`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch bonus and deduction register",
+  );
+
+  return {
+    ...raw,
+    availablePeriods: raw?.availablePeriods ?? [],
+    rows: raw?.rows ?? [],
   };
 }
 

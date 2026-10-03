@@ -28,11 +28,17 @@ import {
 
 import { PayrollRunItemsTable } from "@/components/payroll/payroll-run-items-table";
 import { PayrollRegisterTable } from "@/components/payroll/payroll-register-table";
+import { BonusDeductionPanel } from "@/components/payroll/bonus-deduction-panel";
 import { PrintablePayslip } from "@/components/payroll/printable-payslip";
 import { RunItemAdjustDialog } from "@/components/payroll/run-item-adjust-dialog";
 import { RunStatusBadge } from "@/components/payroll/run-status-badge";
 
-import { getPayrollRegister, getPayrollRun, getPayslip } from "@/lib/api/payroll.api";
+import {
+  getPayrollAdjustments,
+  getPayrollRegister,
+  getPayrollRun,
+  getPayslip,
+} from "@/lib/api/payroll.api";
 import { useAuth } from "@/lib/auth/auth-context";
 import { usePayroll } from "@/lib/payroll-fm/store";
 import { usePayrollAccess } from "@/lib/payroll-fm/access";
@@ -41,12 +47,20 @@ import { PAYMENT_METHOD_OPTIONS } from "@/lib/payroll-fm/types";
 import { formatCurrency } from "@/lib/utils";
 
 import type {
+  PayrollAdjustmentRegister,
   PayrollRegister,
   PayrollRun,
   PayrollRunItem,
   PayslipResult,
   UpdatePayrollRunItemPayload,
 } from "@/lib/types/payroll";
+
+const EMPTY_ADJUSTMENTS: PayrollAdjustmentRegister = {
+  filters: { year: null, month: null },
+  availablePeriods: [],
+  rows: [],
+  totals: { totalBonus: 0, totalDeduction: 0, netEffect: 0 },
+};
 
 export default function PayrollRunDetailPage() {
   const { runId } = useParams<{ runId: string }>();
@@ -80,6 +94,22 @@ export default function PayrollRunDetailPage() {
   const [paymentReference, setPaymentReference] = useState("");
   const [paidOn, setPaidOn] = useState(toISODate(new Date()));
   const [payNotes, setPayNotes] = useState("");
+
+  const [adjustments, setAdjustments] = useState(EMPTY_ADJUSTMENTS);
+  const [isAdjustmentsLoading, setIsAdjustmentsLoading] = useState(true);
+  const [adjustYear, setAdjustYear] = useState<number | null>(null);
+  const [adjustMonth, setAdjustMonth] = useState<number | null>(null);
+
+  // Bonus and deduction expand independently, so opening a bonus row does not
+  // collapse the same employee in the deduction list.
+  const [expandedBonusId, setExpandedBonusId] = useState<string | null>(null);
+  const [expandedDeductionId, setExpandedDeductionId] = useState<string | null>(
+    null,
+  );
+
+  // Bumped after a save so the register refetches even when the filters are
+  // unchanged.
+  const [adjustRefresh, setAdjustRefresh] = useState(0);
 
   // The store keeps the run list fresh after every action, so mirror the run
   // out of it and fall back to a direct fetch on deep links.
@@ -143,6 +173,36 @@ export default function PayrollRunDetailPage() {
     };
   }, [runId, accessToken, runFromStore]);
 
+  // Bonus / deduction register. Every payroll status is included server-side so
+  // a draft's figures show up here immediately after saving.
+  useEffect(() => {
+    if (!accessToken) return;
+
+    let cancelled = false;
+    setIsAdjustmentsLoading(true);
+
+    void (async () => {
+      try {
+        const result = await getPayrollAdjustments(
+          {
+            ...(adjustYear ? { year: adjustYear } : {}),
+            ...(adjustMonth ? { month: adjustMonth } : {}),
+          },
+          accessToken,
+        );
+        if (!cancelled) setAdjustments(result);
+      } catch {
+        if (!cancelled) setAdjustments(EMPTY_ADJUSTMENTS);
+      } finally {
+        if (!cancelled) setIsAdjustmentsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, adjustYear, adjustMonth, adjustRefresh]);
+
   const handleAdjustSave = async (payload: UpdatePayrollRunItemPayload) => {
     if (!adjustItem || !run) return;
 
@@ -151,6 +211,7 @@ export default function PayrollRunDetailPage() {
       const updated = await updateRunItem(run.id, adjustItem.id, payload);
       if (updated.items) setRun(updated);
       else await loadRun();
+      setAdjustRefresh((n) => n + 1);
       toast("Payroll line updated", "Gross and net were recalculated.", "success");
       setAdjustItem(null);
     } catch (e) {
@@ -513,22 +574,47 @@ export default function PayrollRunDetailPage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-bold">
-            Employee Payroll Lines
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PayrollRunItemsTable
-            items={items}
-            isLoading={isLoading}
-            canAdjust={canProcess && run.status === "DRAFT"}
-            onAdjust={(item) => setAdjustItem(item)}
-            onViewPayslip={handleViewPayslip}
-          />
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm font-bold">
+              Employee Payroll Lines
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PayrollRunItemsTable
+              items={items}
+              isLoading={isLoading}
+              canAdjust={canProcess && run.status === "DRAFT"}
+              onAdjust={(item) => setAdjustItem(item)}
+              onViewPayslip={handleViewPayslip}
+            />
+          </CardContent>
+        </Card>
+
+        <BonusDeductionPanel
+          rows={adjustments.rows}
+          totals={adjustments.totals}
+          periods={adjustments.availablePeriods}
+          year={adjustYear}
+          month={adjustMonth}
+          isLoading={isAdjustmentsLoading}
+          expandedBonusId={expandedBonusId}
+          expandedDeductionId={expandedDeductionId}
+          onToggleBonus={(employeeId) =>
+            setExpandedBonusId((current) =>
+              current === employeeId ? null : employeeId,
+            )
+          }
+          onToggleDeduction={(employeeId) =>
+            setExpandedDeductionId((current) =>
+              current === employeeId ? null : employeeId,
+            )
+          }
+          onYearChange={setAdjustYear}
+          onMonthChange={setAdjustMonth}
+        />
+      </div>
 
       {register && <PayrollRegisterTable register={register} isLoading={isRegisterLoading} />}
 

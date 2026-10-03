@@ -146,6 +146,65 @@ export interface MissingStructureEmployee {
   designation?: { title: string } | null;
 }
 
+// ── bonus / deduction register ─────────────────────────────────────────
+
+export interface AdjustmentLine {
+  name: string;
+  amount: number;
+}
+
+/** One payroll period's adjustments for one employee. */
+export interface PayrollAdjustmentPeriod {
+  runId: string;
+  year: number;
+  month: number;
+  label: string;
+  runStatus: PayrollRunStatus;
+  bonus: AdjustmentLine[];
+  deductions: AdjustmentLine[];
+  totalBonus: number;
+  totalDeduction: number;
+}
+
+/** One employee row: their totals across every period in the filter. */
+export interface PayrollAdjustmentEmployeeRow {
+  employeeId: string;
+  employeeCode: string;
+  name: string;
+  designation: string;
+  totalBonus: number;
+  totalDeduction: number;
+  netEffect: number;
+  periods: PayrollAdjustmentPeriod[];
+}
+
+export interface PayrollAdjustmentTotals {
+  totalBonus: number;
+  totalDeduction: number;
+  netEffect: number;
+}
+
+export interface PayrollAdjustmentPeriodOption {
+  runId: string;
+  year: number;
+  month: number;
+  label: string;
+  status: PayrollRunStatus;
+}
+
+export interface PayrollAdjustmentRegister {
+  filters: { year: number | null; month: number | null };
+  availablePeriods: PayrollAdjustmentPeriodOption[];
+  rows: PayrollAdjustmentEmployeeRow[];
+  totals: PayrollAdjustmentTotals;
+}
+
+export interface PayrollAdjustmentListParams {
+  year?: number;
+  month?: number;
+  employeeId?: string;
+}
+
 // ── payloads ───────────────────────────────────────────────────────────
 
 export interface GeneratePayrollPayload {
