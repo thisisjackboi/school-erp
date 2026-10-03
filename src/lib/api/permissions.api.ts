@@ -1,18 +1,9 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 import type {
   PaginatedResponse,
   Permission,
 } from "../types/rbac";
-
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {}),
-  };
-}
 
 export async function getPermissions(
   page = 1,
@@ -34,22 +25,11 @@ export async function getPermissions(
     params.set("module", module);
   }
 
-  const response = await fetch(
+  return apiData<PaginatedResponse<Permission>>(
     `${API_BASE_URL}/permissions?${params.toString()}`,
-    {
-      headers: getAuthHeaders(accessToken),
-    },
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch permissions",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message || "Failed to fetch permissions",
-    );
-  }
-
-  return result.data;
 }
 
 export async function createPermission(
@@ -60,27 +40,15 @@ export async function createPermission(
   },
   accessToken?: string | null,
 ): Promise<Permission> {
-  const response = await fetch(
+  return apiData<Permission>(
     `${API_BASE_URL}/permissions`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(accessToken),
-      },
+      headers: jsonHeaders(accessToken),
       body: JSON.stringify(data),
     },
+    "Failed to create permission",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message || "Failed to create permission",
-    );
-  }
-
-  return result.data;
 }
 
 export async function updatePermission(
@@ -92,46 +60,27 @@ export async function updatePermission(
   },
   accessToken?: string | null,
 ): Promise<Permission> {
-  const response = await fetch(
+  return apiData<Permission>(
     `${API_BASE_URL}/permissions/${id}`,
     {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(accessToken),
-      },
+      headers: jsonHeaders(accessToken),
       body: JSON.stringify(data),
     },
+    "Failed to update permission",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message || "Failed to update permission",
-    );
-  }
-
-  return result.data;
 }
 
 export async function deletePermission(
   id: string,
   accessToken?: string | null,
 ): Promise<void> {
-  const response = await fetch(
+  await apiData<unknown>(
     `${API_BASE_URL}/permissions/${id}`,
     {
       method: "DELETE",
-      headers: getAuthHeaders(accessToken),
+      headers: authHeaders(accessToken),
     },
+    "Failed to delete permission",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message || "Failed to delete permission",
-    );
-  }
 }

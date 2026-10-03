@@ -1,14 +1,49 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MetricCard } from "@/components/enterprise/metric-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DUMMY_ANNOUNCEMENTS, DUMMY_FEE_INVOICES } from "@/lib/dummy-data";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DUMMY_FEE_INVOICES } from "@/lib/dummy-data";
 import { UserCheck, CreditCard, Award, Megaphone, CheckCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { useAuth } from "@/lib/auth/auth-context";
+import { formatDisplayDate } from "@/lib/dates";
+import { getNotices } from "@/lib/api/notices.api";
+import type { Notice } from "@/lib/types/notice";
+
+const DASHBOARD_NOTICE_LIMIT = 4;
 
 export function ParentDashboard() {
+  const { accessToken } = useAuth();
   const [selectedChild, setSelectedChild] = useState("Aarav Sharma");
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [isLoadingNotices, setIsLoadingNotices] = useState(true);
+
+  useEffect(() => {
+    if (!accessToken) {
+      setIsLoadingNotices(false);
+      return;
+    }
+
+    const loadNotices = async () => {
+      try {
+        const result = await getNotices(
+          { limit: DASHBOARD_NOTICE_LIMIT },
+          accessToken,
+        );
+
+        setNotices(result.items);
+      } catch {
+        // A failed circular fetch must not blank out the whole dashboard.
+        setNotices([]);
+      } finally {
+        setIsLoadingNotices(false);
+      }
+    };
+
+    void loadNotices();
+  }, [accessToken]);
 
   return (
     <div className="space-y-6">
@@ -104,15 +139,25 @@ export function ParentDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-xs">
-            {DUMMY_ANNOUNCEMENTS.map((ann) => (
-              <div key={ann.id} className="p-3 rounded-lg border border-border space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900 dark:text-slate-100">{ann.title}</span>
-                  <span className="text-[10px] text-slate-400">{ann.publishedDate}</span>
+            {isLoadingNotices ? (
+              [0, 1].map((row) => (
+                <Skeleton key={row} className="h-16 w-full" />
+              ))
+            ) : notices.length === 0 ? (
+              <p className="py-6 text-center text-muted-foreground">
+                No circulars published yet.
+              </p>
+            ) : (
+              notices.map((notice) => (
+                <div key={notice.id} className="p-3 rounded-lg border border-border space-y-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-bold text-slate-900 dark:text-slate-100">{notice.title}</span>
+                    <span className="shrink-0 text-[10px] text-slate-400">{formatDisplayDate(notice.publishedAt)}</span>
+                  </div>
+                  <p className="text-muted-foreground">{notice.body}</p>
                 </div>
-                <p className="text-muted-foreground">{ann.content}</p>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
       </div>

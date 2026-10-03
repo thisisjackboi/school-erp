@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 
 import type {
   Employee,
@@ -6,16 +7,6 @@ import type {
   EmploymentType,
   Gender,
 } from "../types/employee";
-
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {}),
-  };
-}
 
 export interface CreateEmployeePayload {
   createUser?: boolean;
@@ -60,56 +51,37 @@ export interface UpdateEmployeePayload {
 export async function getEmployees(
   accessToken?: string | null,
 ): Promise<Employee[]> {
-  const response = await fetch(`${API_BASE_URL}/employees`, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch employees");
-  }
-
-  return result.data;
+  return apiData<Employee[]>(
+    `${API_BASE_URL}/employees`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch employees",
+  );
 }
 
 export async function getEmployee(
   id: string,
   accessToken?: string | null,
 ): Promise<Employee> {
-  const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch employee");
-  }
-
-  return result.data;
+  return apiData<Employee>(
+    `${API_BASE_URL}/employees/${id}`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch employee",
+  );
 }
 
 export async function createEmployee(
   data: CreateEmployeePayload,
   accessToken?: string | null,
 ): Promise<Employee> {
-  const response = await fetch(`${API_BASE_URL}/employees`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Employee>(
+    `${API_BASE_URL}/employees`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to create employee");
-  }
-
-  return result.data;
+    "Failed to create employee",
+  );
 }
 
 export async function updateEmployee(
@@ -117,38 +89,27 @@ export async function updateEmployee(
   data: UpdateEmployeePayload,
   accessToken?: string | null,
 ): Promise<Employee> {
-  const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Employee>(
+    `${API_BASE_URL}/employees/${id}`,
+    {
+      method: "PUT",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to update employee");
-  }
-
-  return result.data;
+    "Failed to update employee",
+  );
 }
 
 export async function deleteEmployee(
   id: string,
   accessToken?: string | null,
 ): Promise<Employee> {
-  const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to delete employee");
-  }
-
-  return result.data;
+  return apiData<Employee>(
+    `${API_BASE_URL}/employees/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+    "Failed to delete employee",
+  );
 }

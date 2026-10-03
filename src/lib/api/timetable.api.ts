@@ -1,15 +1,6 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 import type { Period, TimetableSlot } from "../types/timetable";
-
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {}),
-  };
-}
 
 export interface CreatePeriodPayload {
   name: string;
@@ -46,39 +37,26 @@ export interface UpdateTimetableSlotPayload {
 export async function getPeriods(
   accessToken?: string | null,
 ): Promise<Period[]> {
-  const response = await fetch(`${API_BASE_URL}/timetable/periods`, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch timetable periods");
-  }
-
-  return result.data;
+  return apiData<Period[]>(
+    `${API_BASE_URL}/timetable/periods`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch timetable periods",
+  );
 }
 
 export async function createPeriod(
   data: CreatePeriodPayload,
   accessToken?: string | null,
 ): Promise<Period> {
-  const response = await fetch(`${API_BASE_URL}/timetable/periods`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Period>(
+    `${API_BASE_URL}/timetable/periods`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to create period");
-  }
-
-  return result.data;
+    "Failed to create period",
+  );
 }
 
 export async function updatePeriod(
@@ -86,38 +64,29 @@ export async function updatePeriod(
   data: UpdatePeriodPayload,
   accessToken?: string | null,
 ): Promise<Period> {
-  const response = await fetch(`${API_BASE_URL}/timetable/periods/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Period>(
+    `${API_BASE_URL}/timetable/periods/${id}`,
+    {
+      method: "PUT",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to update period");
-  }
-
-  return result.data;
+    "Failed to update period",
+  );
 }
 
 export async function deletePeriod(
   id: string,
   accessToken?: string | null,
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/timetable/periods/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to delete period");
-  }
+  await apiData<unknown>(
+    `${API_BASE_URL}/timetable/periods/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+    "Failed to delete period",
+  );
 }
 
 // =====================================================
@@ -147,39 +116,26 @@ export async function getTimetableSlots(
   const qs = params.toString();
   const url = `${API_BASE_URL}/timetable/slots${qs ? `?${qs}` : ""}`;
 
-  const response = await fetch(url, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch timetable slots");
-  }
-
-  return result.data;
+  return apiData<TimetableSlot[]>(
+    url,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch timetable slots",
+  );
 }
 
 export async function createTimetableSlot(
   data: CreateTimetableSlotPayload,
   accessToken?: string | null,
 ): Promise<TimetableSlot> {
-  const response = await fetch(`${API_BASE_URL}/timetable/slots`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<TimetableSlot>(
+    `${API_BASE_URL}/timetable/slots`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to create timetable slot");
-  }
-
-  return result.data;
+    "Failed to create timetable slot",
+  );
 }
 
 export async function updateTimetableSlot(
@@ -187,36 +143,27 @@ export async function updateTimetableSlot(
   data: UpdateTimetableSlotPayload,
   accessToken?: string | null,
 ): Promise<TimetableSlot> {
-  const response = await fetch(`${API_BASE_URL}/timetable/slots/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<TimetableSlot>(
+    `${API_BASE_URL}/timetable/slots/${id}`,
+    {
+      method: "PUT",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to update timetable slot");
-  }
-
-  return result.data;
+    "Failed to update timetable slot",
+  );
 }
 
 export async function deleteTimetableSlot(
   id: string,
   accessToken?: string | null,
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/timetable/slots/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to delete timetable slot");
-  }
+  await apiData<unknown>(
+    `${API_BASE_URL}/timetable/slots/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+    "Failed to delete timetable slot",
+  );
 }

@@ -1,18 +1,7 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 
 import type { ClassSubject } from "../types/class-subject";
-
-function getAuthHeaders(
-  accessToken?: string | null,
-) {
-  return {
-    ...(accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {}),
-  };
-}
 
 export interface CreateClassSubjectPayload {
   classId: string;
@@ -31,74 +20,37 @@ export interface UpdateClassSubjectPayload {
 export async function getClassSubjects(
   accessToken?: string | null,
 ): Promise<ClassSubject[]> {
-  const response = await fetch(
+  return apiData<ClassSubject[]>(
     `${API_BASE_URL}/class-subjects`,
-    {
-      headers: getAuthHeaders(accessToken),
-    },
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch class-subject assignments",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to fetch class-subject assignments",
-    );
-  }
-
-  return result.data;
 }
 
 export async function getClassSubject(
   id: string,
   accessToken?: string | null,
 ): Promise<ClassSubject> {
-  const response = await fetch(
+  return apiData<ClassSubject>(
     `${API_BASE_URL}/class-subjects/${id}`,
-    {
-      headers: getAuthHeaders(accessToken),
-    },
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch class-subject assignment",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to fetch class-subject assignment",
-    );
-  }
-
-  return result.data;
 }
 
 export async function createClassSubject(
   data: CreateClassSubjectPayload,
   accessToken?: string | null,
 ): Promise<ClassSubject> {
-  const response = await fetch(
+  return apiData<ClassSubject>(
     `${API_BASE_URL}/class-subjects`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(accessToken),
-      },
+      headers: jsonHeaders(accessToken),
       body: JSON.stringify(data),
     },
+    "Failed to create class-subject assignment",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to create class-subject assignment",
-    );
-  }
-
-  return result.data;
 }
 
 export async function updateClassSubject(
@@ -106,26 +58,13 @@ export async function updateClassSubject(
   data: UpdateClassSubjectPayload,
   accessToken?: string | null,
 ): Promise<ClassSubject> {
-  const response = await fetch(
+  return apiData<ClassSubject>(
     `${API_BASE_URL}/class-subjects/${id}`,
     {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(accessToken),
-      },
+      headers: jsonHeaders(accessToken),
       body: JSON.stringify(data),
     },
+    "Failed to update class-subject assignment",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to update class-subject assignment",
-    );
-  }
-
-  return result.data;
 }

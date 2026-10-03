@@ -36,6 +36,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
+import { PermissionGate } from "@/components/auth/permission-gate";
 import {
   Tabs,
   TabsList,
@@ -517,11 +518,26 @@ export default function StudentProfilePage() {
             >
               {profile.enrollments.map((e) => (
                 <option key={e.id} value={e.id}>
-                  {e.academicSession.name} · {e.class.name}{e.section.name ? ` · Section ${e.section.name}` : ""}
+                  {e.academicSession.name} · {e.class.name}
+                  {e.section.name ? ` · Section ${e.section.name}` : ""} · {e.status}
                 </option>
               ))}
             </select>
           </div>
+        )}
+        {selectedEnrollment?.status === "ACTIVE" && (
+          <PermissionGate permission="students.promote">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs self-end"
+              onClick={() =>
+                navigate(`/students/promote?studentId=${profile.id}&sectionId=${selectedEnrollment.id}`)
+              }
+            >
+              <GraduationCap className="h-3.5 w-3.5 mr-1.5" /> Promote
+            </Button>
+          </PermissionGate>
         )}
       </div>
 

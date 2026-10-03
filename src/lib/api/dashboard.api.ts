@@ -1,33 +1,18 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders } from "./request";
 import type {
   TeacherDashboard,
   DashboardTimetableResponse,
 } from "../types/dashboard";
 
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {}),
-  };
-}
-
 export async function getDashboard<T = TeacherDashboard>(
   accessToken?: string | null,
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}/dashboard`, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch dashboard");
-  }
-
-  return result.data as T;
+  return apiData<T>(
+    `${API_BASE_URL}/dashboard`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch dashboard",
+  );
 }
 
 export async function getDashboardTimetable(
@@ -42,15 +27,9 @@ export async function getDashboardTimetable(
   const qs = params.toString();
   const url = `${API_BASE_URL}/dashboard/timetable${qs ? `?${qs}` : ""}`;
 
-  const response = await fetch(url, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch dashboard timetable");
-  }
-
-  return result.data;
+  return apiData<DashboardTimetableResponse>(
+    url,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch dashboard timetable",
+  );
 }

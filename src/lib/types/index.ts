@@ -166,20 +166,10 @@ export interface FinancialEntry {
   referenceNo: string;
 }
 
-export interface PayrollRecord {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  designation: string;
-  department: string;
-  month: string;
-  basicSalary: number;
-  allowances: number;
-  deductions: number;
-  netSalary: number;
-  status: "Paid" | "Processing" | "Pending";
-  paymentDate?: string;
-}
+/**
+ * Payroll types live in `lib/types/payroll.ts`. The old flat
+ * `PayrollRecord` shape was mock-only and never matched the API.
+ */
 
 export interface LeaveRequest {
   id: string;

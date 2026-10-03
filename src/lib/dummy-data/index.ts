@@ -9,7 +9,6 @@ import {
   TimetableSlot,
   FeeInvoice,
   FinancialEntry,
-  PayrollRecord,
   LeaveRequest,
   LibraryBook,
   BookCheckout,

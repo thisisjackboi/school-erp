@@ -287,7 +287,7 @@ export default function ClassesPage() {
               key={schoolClass.id}
               className="group hover:border-blue-500"
             >
-              <CardHeader>
+              <CardHeader className="border-b-0">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className="rounded-lg bg-blue-50 p-2 text-blue-600 dark:bg-blue-950/40">
@@ -323,15 +323,6 @@ export default function ClassesPage() {
                   </PermissionGate>
                 </div>
               </CardHeader>
-
-              <CardContent>
-                <div className="rounded-md bg-slate-50 p-3 text-xs text-muted-foreground dark:bg-slate-900">
-                  Class ID
-                  <p className="mt-1 break-all font-mono text-[10px] text-slate-700 dark:text-slate-300">
-                    {schoolClass.id}
-                  </p>
-                </div>
-              </CardContent>
             </Card>
           ))}
         </div>

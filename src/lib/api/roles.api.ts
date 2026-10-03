@@ -1,52 +1,28 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 import type { PaginatedResponse, Permission, Role } from "../types/rbac";
-
-function getAuthHeaders(accessToken?: string | null) {
-  return {
-    ...(accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {}),
-  };
-}
 
 export async function getRoles(
   page = 1,
   limit = 50,
   accessToken?: string | null,
 ): Promise<PaginatedResponse<Role>> {
-  const response = await fetch(
+  return apiData<PaginatedResponse<Role>>(
     `${API_BASE_URL}/roles?page=${page}&limit=${limit}`,
-    {
-      headers: getAuthHeaders(accessToken),
-    },
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch roles",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch roles");
-  }
-
-  return result.data;
 }
 
 export async function getRolePermissions(
   roleId: string,
   accessToken?: string | null,
 ): Promise<Permission[]> {
-  const response = await fetch(`${API_BASE_URL}/roles/${roleId}/permissions`, {
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to fetch role permissions");
-  }
-
-  return result.data;
+  return apiData<Permission[]>(
+    `${API_BASE_URL}/roles/${roleId}/permissions`,
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch role permissions",
+  );
 }
 
 export async function updateRolePermissions(
@@ -54,24 +30,17 @@ export async function updateRolePermissions(
   permissionIds: string[],
   accessToken?: string | null,
 ): Promise<Role> {
-  const response = await fetch(`${API_BASE_URL}/roles/${roleId}/permissions`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Role>(
+    `${API_BASE_URL}/roles/${roleId}/permissions`,
+    {
+      method: "PUT",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify({
+        permissionIds,
+      }),
     },
-    body: JSON.stringify({
-      permissionIds,
-    }),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to update role permissions");
-  }
-
-  return result.data;
+    "Failed to update role permissions",
+  );
 }
 
 export async function createRole(
@@ -81,22 +50,15 @@ export async function createRole(
   },
   accessToken?: string | null,
 ): Promise<Role> {
-  const response = await fetch(`${API_BASE_URL}/roles`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Role>(
+    `${API_BASE_URL}/roles`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to create role");
-  }
-
-  return result.data;
+    "Failed to create role",
+  );
 }
 
 export async function updateRole(
@@ -107,36 +69,27 @@ export async function updateRole(
   },
   accessToken?: string | null,
 ): Promise<Role> {
-  const response = await fetch(`${API_BASE_URL}/roles/${id}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(accessToken),
+  return apiData<Role>(
+    `${API_BASE_URL}/roles/${id}`,
+    {
+      method: "PATCH",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to update role");
-  }
-
-  return result.data;
+    "Failed to update role",
+  );
 }
 
 export async function deleteRole(
   id: string,
   accessToken?: string | null,
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/roles/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(accessToken),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to delete role");
-  }
+  await apiData<unknown>(
+    `${API_BASE_URL}/roles/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+    "Failed to delete role",
+  );
 }

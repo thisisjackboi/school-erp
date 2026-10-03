@@ -1,18 +1,7 @@
 import { API_BASE_URL } from "./config";
+import { apiData, authHeaders, jsonHeaders } from "./request";
 
 import type { Subject } from "../types/subject";
-
-function getAuthHeaders(
-  accessToken?: string | null,
-) {
-  return {
-    ...(accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {}),
-  };
-}
 
 export interface CreateSubjectPayload {
   name: string;
@@ -29,74 +18,37 @@ export interface UpdateSubjectPayload {
 export async function getSubjects(
   accessToken?: string | null,
 ): Promise<Subject[]> {
-  const response = await fetch(
+  return apiData<Subject[]>(
     `${API_BASE_URL}/subjects`,
-    {
-      headers: getAuthHeaders(accessToken),
-    },
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch subjects",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to fetch subjects",
-    );
-  }
-
-  return result.data;
 }
 
 export async function getSubject(
   id: string,
   accessToken?: string | null,
 ): Promise<Subject> {
-  const response = await fetch(
+  return apiData<Subject>(
     `${API_BASE_URL}/subjects/${id}`,
-    {
-      headers: getAuthHeaders(accessToken),
-    },
+    { headers: authHeaders(accessToken) },
+    "Failed to fetch subject",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to fetch subject",
-    );
-  }
-
-  return result.data;
 }
 
 export async function createSubject(
   data: CreateSubjectPayload,
   accessToken?: string | null,
 ): Promise<Subject> {
-  const response = await fetch(
+  return apiData<Subject>(
     `${API_BASE_URL}/subjects`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(accessToken),
-      },
+      headers: jsonHeaders(accessToken),
       body: JSON.stringify(data),
     },
+    "Failed to create subject",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to create subject",
-    );
-  }
-
-  return result.data;
 }
 
 export async function updateSubject(
@@ -104,26 +56,13 @@ export async function updateSubject(
   data: UpdateSubjectPayload,
   accessToken?: string | null,
 ): Promise<Subject> {
-  const response = await fetch(
+  return apiData<Subject>(
     `${API_BASE_URL}/subjects/${id}`,
     {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(accessToken),
-      },
+      headers: jsonHeaders(accessToken),
       body: JSON.stringify(data),
     },
+    "Failed to update subject",
   );
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to update subject",
-    );
-  }
-
-  return result.data;
 }

@@ -24,6 +24,7 @@ export const MODULE_PERMISSION_MAP: Record<string, string[]> = {
   "/class-subjects": ["class-subjects.read"],
   "/teacher-subject-assignments": ["teacher-subject-assignments.read"],
   "/students": ["students.read"],
+  "/students/promote": ["students.promote"],
   "/admissions": ["admissions.read"],
   "/attendance": ["student-attendance.read"],
   "/timetable": ["timetable-periods.read", "timetable-slots.read"],
@@ -41,6 +42,14 @@ export const MODULE_PERMISSION_MAP: Record<string, string[]> = {
   "/fees/reports": ["fees.reports.read"],
   "/library": ["library.read"],
   "/announcements": ["notices.read"],
+  "/homework": ["homework.read", "homework.read.own"],
+  "/payroll": ["payroll.read", "salary-structures.read", "salary-components.read"],
+  "/payroll/runs": ["payroll.read"],
+  "/payroll/runs/:runId": ["payroll.read"],
+  "/payroll/status": ["payroll.read"],
+  "/payroll/structures": ["salary-structures.read"],
+  "/payroll/components": ["salary-components.read"],
+  "/payroll/payslip/:itemId": ["payroll.read"],
 };
 
 /**

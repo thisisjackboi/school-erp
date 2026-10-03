@@ -2,8 +2,8 @@ import React from "react";
 import { useRole } from "@/lib/permissions";
 
 interface PermissionGateProps {
-  /** Required permission code, e.g. "classes.create" */
-  permission: string;
+  /** Required permission code, e.g. "classes.create". Omit when using `anyPermission`. */
+  permission?: string;
   /** Any single one of these codes is enough when provided. */
   anyPermission?: string[];
   children: React.ReactNode;
@@ -22,7 +22,9 @@ export function PermissionGate({
 
   const allowed = anyPermission?.length
     ? hasAnyPermission(...anyPermission)
-    : hasPermission(permission);
+    : permission
+      ? hasPermission(permission)
+      : false;
 
   if (!allowed) {
     return null;

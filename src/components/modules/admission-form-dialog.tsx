@@ -13,7 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { useToast } from "@/components/ui/toast";
-import { UserPlus, ArrowRight, ArrowLeft, Check } from "lucide-react";
+import {
+  UserPlus,
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 
 import { useAuth } from "@/lib/auth/auth-context";
 import { toDateInputValue } from "@/lib/dates";
@@ -24,10 +31,12 @@ import {
 } from "@/lib/api/admissions.api";
 import { getClasses } from "@/lib/api/classes.api";
 import { getAcademicSessions } from "@/lib/api/academic-sessions.api";
+import { getSections } from "@/lib/api/sections.api";
 
 import type { Admission } from "@/lib/types/admission";
 import type { SchoolClass } from "@/lib/types/class";
 import type { AcademicSession } from "@/lib/types/academic-session";
+import type { Section } from "@/lib/types/section";
 
 import {
   LIMITS,
@@ -60,6 +69,7 @@ export function AdmissionFormDialog({
   const [academicSessions, setAcademicSessions] = useState<AcademicSession[]>(
     [],
   );
+  const [sections, setSections] = useState<Section[]>([]);
   const [isLoadingOptions, setIsLoadingOptions] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +83,7 @@ export function AdmissionFormDialog({
     gender: "MALE",
     applyingForClassId: "",
     academicSessionId: "",
+    sectionId: "",
     guardianName: "",
     guardianPhone: "",
   });
@@ -80,6 +91,17 @@ export function AdmissionFormDialog({
   const [loadingAppNo, setLoadingAppNo] = useState(false);
 
   const isEditMode = !!admission;
+  const isConverted = !!admission?.convertedStudentId;
+
+  const availableSections = React.useMemo(
+    () =>
+      sections.filter(
+        (section) =>
+          section.classId === formData.applyingForClassId &&
+          section.academicSessionId === formData.academicSessionId,
+      ),
+    [sections, formData.applyingForClassId, formData.academicSessionId],
+  );
 
   const fetchNextAppNumber = React.useCallback(async () => {
     if (!accessToken || isEditMode) return;
@@ -123,6 +145,7 @@ export function AdmissionFormDialog({
         gender: admission.gender || "MALE",
         applyingForClassId: admission.applyingForClassId || "",
         academicSessionId: admission.academicSessionId || "",
+        sectionId: "",
         guardianName: admission.guardianName || "",
         guardianPhone: admission.guardianPhone || "",
       });
@@ -135,6 +158,7 @@ export function AdmissionFormDialog({
         gender: "MALE",
         applyingForClassId: "",
         academicSessionId: "",
+        sectionId: "",
         guardianName: "",
         guardianPhone: "",
       });
@@ -147,13 +171,15 @@ export function AdmissionFormDialog({
       setError(null);
 
       try {
-        const [classesData, sessionsData] = await Promise.all([
+        const [classesData, sessionsData, sectionsData] = await Promise.all([
           getClasses(accessToken),
           getAcademicSessions(accessToken),
+          getSections(accessToken),
         ]);
 
         setClasses(classesData);
         setAcademicSessions(sessionsData);
+        setSections(sectionsData);
 
         if (!admission) {
           void fetchNextAppNumber();
@@ -216,6 +242,11 @@ export function AdmissionFormDialog({
     setFormData((current) => ({
       ...current,
       [field]: next,
+      // Sections are scoped to a class + session pair, so changing either one
+      // invalidates any previously chosen section.
+      ...(field === "applyingForClassId" || field === "academicSessionId"
+        ? { sectionId: "" }
+        : {}),
     }));
 
     if (field === "guardianPhone") {
@@ -274,6 +305,19 @@ export function AdmissionFormDialog({
       if (!formData.academicSessionId) {
         setError("Please select an academic session.");
         return false;
+      }
+
+      if (isConverted) {
+        const classOrSessionChanged =
+          formData.applyingForClassId !== admission?.applyingForClassId ||
+          formData.academicSessionId !== admission?.academicSessionId;
+
+        if (classOrSessionChanged && !formData.sectionId) {
+          setError(
+            "Please select a section. Moving a converted student to another class or session requires a section in that session.",
+          );
+          return false;
+        }
       }
     }
 
@@ -345,6 +389,9 @@ export function AdmissionFormDialog({
             gender: formData.gender as "MALE" | "FEMALE" | "OTHER",
             applyingForClassId: formData.applyingForClassId,
             academicSessionId: formData.academicSessionId,
+            sectionId: isConverted
+              ? formData.sectionId || undefined
+              : undefined,
             guardianName: formData.guardianName.trim(),
             guardianPhone: formData.guardianPhone.trim(),
           },
@@ -404,6 +451,7 @@ export function AdmissionFormDialog({
       gender: "MALE",
       applyingForClassId: "",
       academicSessionId: "",
+      sectionId: "",
       guardianName: "",
       guardianPhone: "",
     });
@@ -457,20 +505,31 @@ export function AdmissionFormDialog({
                   </label>
                 </div>
 
-                <Input
-                  placeholder="Auto-generated e.g. APP-2026-0001"
-                  value={formData.applicationNumber}
-                  disabled={isEditMode || loadingAppNo}
-                  maxLength={20}
-                  onChange={(event) =>
-                    updateField("applicationNumber", event.target.value)
-                  }
-                  className={
-                    !isEditMode
-                      ? "disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500"
-                      : ""
-                  }
-                />
+                <div className="relative flex items-center">
+                  <Input
+                    placeholder="Auto-generated e.g. APP-2026-0001"
+                    value={formData.applicationNumber}
+                    disabled={isEditMode}
+                    maxLength={20}
+                    onChange={(event) =>
+                      updateField("applicationNumber", event.target.value)
+                    }
+                    className={!isEditMode ? "pr-8" : ""}
+                  />
+                  {!isEditMode && (
+                    <button
+                      type="button"
+                      onClick={fetchNextAppNumber}
+                      disabled={loadingAppNo}
+                      title="Refresh next auto-generated application number"
+                      className="absolute right-2 text-slate-400 hover:text-blue-600 disabled:opacity-50"
+                    >
+                      <RefreshCw
+                        className={`h-3.5 w-3.5 ${loadingAppNo ? "animate-spin" : ""}`}
+                      />
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -579,6 +638,48 @@ export function AdmissionFormDialog({
                   ))}
                 </select>
               </div>
+
+              {isConverted && (
+                <div className="col-span-2">
+                  <label className="font-semibold block mb-1">
+                    Section{" "}
+                    {admission?.applyingForClassId !==
+                      formData.applyingForClassId ||
+                    admission?.academicSessionId !== formData.academicSessionId
+                      ? "*"
+                      : "(unchanged)"}
+                  </label>
+
+                  <select
+                    value={formData.sectionId}
+                    onChange={(event) =>
+                      updateField("sectionId", event.target.value)
+                    }
+                    disabled={
+                      isLoadingOptions || availableSections.length === 0
+                    }
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
+                  >
+                    <option value="">
+                      {availableSections.length === 0
+                        ? "No sections for this class and session"
+                        : "Select section"}
+                    </option>
+
+                    {availableSections.map((section) => (
+                      <option key={section.id} value={section.id}>
+                        {section.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    This admission is already converted to a student. Changing
+                    the class or session moves the student&apos;s enrollment, so
+                    pick the section they should belong to.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
